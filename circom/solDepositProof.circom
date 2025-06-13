@@ -132,11 +132,13 @@ template MerkleProof(DEPTH) {
         curBits[d].hi <== cur_hi_state[d];
         curBits[d].lo <== cur_lo_state[d];
 
-        /* build concatenation block */
+        /* build concatenation block - Light Protocol style */
+        /* pathIndices[d] = 0 means current is left child, sibling is right */
+        /* pathIndices[d] = 1 means sibling is left child, current is right */
         for (var i = 0; i < 256; i++) {
-            /* Use single multiplication to remain quadratic */
+            // left = pathIndices[d] == 0 ? current : sibling
             blockBits[d][i] <== curBits[d].bits[i] + pathIndices[d] * (sibBits[d].bits[i] - curBits[d].bits[i]);
-
+            // right = pathIndices[d] == 0 ? sibling : current  
             blockBits[d][i+256] <== sibBits[d].bits[i] + pathIndices[d] * (curBits[d].bits[i] - sibBits[d].bits[i]);
         }
 
@@ -187,17 +189,14 @@ template DepositProof(TREE_HEIGHT, CANOPY) {
     signal input pathElements_lo[DEPTH];
     signal input pathIndices[DEPTH];
 
-    /* 1️⃣  Recompute leaf hash */
-    component leaf = LeafHash();
-    leaf.owner_hi      <== owner_hi;
-    leaf.owner_lo      <== owner_lo;
-    leaf.data_hash_hi  <== data_hash_hi;
-    leaf.data_hash_lo  <== data_hash_lo;
+    // Provided leaf hash (private)
+    signal input leaf_hi;
+    signal input leaf_lo;
 
-    /* 2️⃣  Merkle inclusion */
+    /* 1️⃣  Merkle inclusion with provided leaf */
     component inc = MerkleProof(DEPTH);
-    inc.leaf_hi <== leaf.leaf_hi;
-    inc.leaf_lo <== leaf.leaf_lo;
+    inc.leaf_hi <== leaf_hi;
+    inc.leaf_lo <== leaf_lo;
     for (var i=0; i<DEPTH; i++) {
         inc.pathElements_hi[i] <== pathElements_hi[i];
         inc.pathElements_lo[i] <== pathElements_lo[i];
@@ -206,12 +205,12 @@ template DepositProof(TREE_HEIGHT, CANOPY) {
     inc.root_hi <== root_hi;
     inc.root_lo <== root_lo;
 
-    /* 3️⃣  Consistency constraints with PUBLIC fields
-       (only those the bridge needs; add more if required)
-    */
+    // add outputs
     // amount fits in 64 bits → no constraint needed in-circuit
     // dest/source chain IDs etc. are *public inputs* only.
-    // If you want to cross-check more decoded fields, add
+    
+    
+    // TODO: Complete checking adding the checks for Leaf Hash computation
     // SHA-inside-leaf ↔ public equality here.
 }
 

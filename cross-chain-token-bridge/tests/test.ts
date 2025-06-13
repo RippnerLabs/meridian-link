@@ -1,3 +1,4 @@
+import fs from "fs";
 import {Connection, PublicKey} from "@solana/web3.js";
 import {createMint, getOrCreateAssociatedTokenAccount, mintTo, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID} from "@solana/spl-token";
 import * as anchor from "@coral-xyz/anchor";
@@ -287,11 +288,12 @@ async function CreateDepositRecordCompressedAccount(
     const accProof = await rpc.getCompressedAccountProof(depositRecordAccount.hash);
 
     console.log("depositRecord accProof ", accProof);
-    console.log("buildInputs", buildInputs(
+    const circuitInputs = buildInputs(
       depositRecord,
       depositRecordAccount,
       accProof,
-    ))
+    );
+    fs.writeFileSync("../circom/input.json", JSON.stringify(circuitInputs));
   }
 }
 

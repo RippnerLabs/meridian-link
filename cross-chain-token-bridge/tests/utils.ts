@@ -45,13 +45,6 @@ export function buildInputs(
     const dataHash = Buffer.from(sha256(dataBytes));
     const {hi: data_hash_hi, lo: data_hash_lo} = split32ToLimbs(dataHash);
 
-    const ownerLE = Buffer.from(accountRaw.owner._bn.toArray('le', 32));
-    const ownerBE = Buffer.from(ownerLE).reverse();
-    const lamports = Buffer.alloc(8);
-    const leafBuf = Buffer.concat([ownerBE, lamports, dataHash]);
-    const leafHash = Buffer.from(sha256(leafBuf));
-    const {hi: leaf_hi, lo: leaf_lo} = split32ToLimbs(leafHash);
-
     const {hi: root_hi, lo: root_lo} = split32ToLimbs(bnToBe32(proof.root));
 
     const pathElements_hi: string[] = [];
@@ -87,6 +80,11 @@ export function buildInputs(
     const depBN = decoded.deposit_id as BN;
     const deposit_id_hi = depBN.shrn(64).toString(10);
     const deposit_id_lo = depBN.and(new BN("ffffffffffffffff", 16)).toString(10);
+
+    // Extract leaf hash from accountRaw.hash (BN type)
+    const leafBuf = bnToBe32(accountRaw.hash);
+
+    const {hi: leaf_hi, lo: leaf_lo} = split32ToLimbs(leafBuf);
 
     return {
         // public

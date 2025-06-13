@@ -4,6 +4,11 @@
   "main": "index.js",
   "license": "MIT",
   "dependencies": {
+    "@noble/hashes": "^1.8.0",
+    "bn.js": "^5.2.2",
     "circomlib": "^2.0.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.1"
   }
 }
