@@ -1,0 +1,11 @@
+{
+  "owner": "BapHmuDBRhgKsKJKwS88gkLXyhUPGY3tZTxvkWaUGBsL",
+  "source_chain_id": 1,
+  "dest_chain_id": 31337,
+  "dest_chain_addr": "2sQCd2fMbvU2yAAbjU4NQgVfeaTi",
+  "dest_chain_mint_addr": "3ECY53F5ZAxXYUburY7vVwtG1Dkb",
+  "mint": "Gj1zrdwPJew7NczAR9mwn2cnwqi1zGGCeyrTXK2iTC8z",
+  "amount": "64",
+  "timestamp": "68530a02",
+  "deposit_id": "01"
+}

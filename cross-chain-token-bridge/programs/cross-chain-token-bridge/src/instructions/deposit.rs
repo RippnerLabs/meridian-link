@@ -27,11 +27,11 @@ pub struct DepositContext<'info> {
     )]
     pub bridge_state: Account<'info, BridgeState>,
 
-    // #[account(
-    //     seeds=[b"token_bridge", mint.key().as_ref(), dest_chain_id.to_le_bytes().as_ref()],
-    //     bump,
-    // )]
-    // pub token_bridge: Account<'info, TokenBridge>,
+    #[account(
+        seeds=[b"token_bridge", mint.key().as_ref(), dest_chain_id.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub token_bridge: Account<'info, TokenBridge>,
     
     #[account(
         init_if_needed,
@@ -124,7 +124,7 @@ pub fn deposit_handler<'info> (
     deposit_record.source_chain_id = SOURCE_CHAIN_ID;
     deposit_record.dest_chain_id = dest_chain_id;
     deposit_record.dest_chain_addr = dest_chain_addr;
-    // deposit_record.dest_chain_mint_addr = ctx.accounts.token_bridge.dest_chain_mint_addr.clone();
+    deposit_record.dest_chain_mint_addr = ctx.accounts.token_bridge.dest_chain_mint_addr.clone();
     deposit_record.timestamp = Clock::get()?.unix_timestamp;
     deposit_record.deposit_id = current_deposit_num;
     

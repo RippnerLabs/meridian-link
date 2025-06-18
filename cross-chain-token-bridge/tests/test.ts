@@ -36,10 +36,10 @@ describe("test-anchor", () => {
     let rpc = createRpc(
       "http://127.0.0.1:8899",
       "http://127.0.0.1:8784",
-      "http://127.0.0.1:3001",
+      "http://0.0.0.0:3001",
       {
-        commitment: "confirmed",
-      },
+        commitment: "confirmed"
+      },  
     );
     let lamports = web3.LAMPORTS_PER_SOL;
     await rpc.requestAirdrop(signer.publicKey, lamports);
@@ -77,10 +77,10 @@ describe("test-anchor", () => {
     );
     const depositRecordAddress = deriveAddress(depositRecordSeed, addressTree);
     console.log("depositRecordAddress", depositRecordAddress);
-    const dest_chain_id = 41312;
-    const ethHex = "6a1c9fb72eff1b99b7f5708726eab5fb6b447821"; // lower-case, no 0x
+    const dest_chain_id = 31337;
+    const ethHex = "8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199"; // lower-case, no 0x
     const dest_chain_addr = bs58.encode(Buffer.from(ethHex, "hex"));
-    const dest_chain_mint_addr = dest_chain_addr; // same for mint addr
+    const dest_chain_mint_addr = bs58.encode(Buffer.from("9fe46736679d2d9a65f0992f2272de9f3c7fa6e0", "hex"));
     await initTokenBridgeCall(rpc, program, signer, mint, dest_chain_id, dest_chain_mint_addr);
     await CreateDepositRecordCompressedAccount(
       rpc,
@@ -222,21 +222,26 @@ async function CreateDepositRecordCompressedAccount(
   destChainAddr: string
 ) {
   {
-    const proofRpcResult = await rpc.getValidityProofV0(
-      [],
-      [
-        {
-          tree: addressTree,
-          queue: addressQueue,
-          address: bn(address.toBytes()),
-        }
-      ]
-    );
-
+    let  proofRpcResult;
+    try {
+      const proofRpcResult1 = await rpc.getValidityProofV0(
+        [],
+        [
+          {
+            tree: addressTree,
+            queue: addressQueue,
+            address: bn(address.toBytes()),
+          }
+        ]
+      );
+      proofRpcResult = proofRpcResult1;
+    } catch (err) {
+      console.log("err", JSON.stringify(err, null, 2));
+      throw new Error(err);
+    }
+    
     const systemAccountConfig = SystemAccountMetaConfig.new(program.programId);
-    console.log('systemAccountConfig', systemAccountConfig);
     let remainingAccounts = PackedAccounts.newWithSystemAccounts(systemAccountConfig);
-    console.log('remainingAccounts', remainingAccounts);
     const addressMerkleTreePubkeyIndex = remainingAccounts.insertOrGet(addressTree);
     const addressQueuePubkeyIndex = remainingAccounts.insertOrGet(addressQueue);
     const packedAddressMerkleContext = {
@@ -277,17 +282,23 @@ async function CreateDepositRecordCompressedAccount(
     console.log("depositRecordAccount", depositRecordAccount);
 
     const coder = new anchor.BorshCoder(idl as anchor.Idl);
-      let depositRecord = coder.types.decode(
+    let depositRecord = coder.types.decode(
         "DepositRecordCompressedAccount",
         depositRecordAccount.data.data,
       )
  
-      console.log("depositRecord account ", depositRecordAccount);
-      console.log("des depositRecord ", depositRecord);
-  
+    // console.log("depositRecord account ", depositRecordAccount);
+    // console.log("des depositRecord ", depositRecord);
     const accProof = await rpc.getCompressedAccountProof(depositRecordAccount.hash);
 
-    console.log("depositRecord accProof ", accProof);
+    // console.log("depositRecord accProof ", accProof);
+    console.log(depositRecord,
+      depositRecordAccount,
+      accProof)
+
+    fs.writeFileSync("../proof.json", JSON.stringify(accProof));
+    fs.writeFileSync("../account.json", JSON.stringify(depositRecordAccount));
+    fs.writeFileSync("../record.json", JSON.stringify(depositRecord));
     const circuitInputs = buildInputs(
       depositRecord,
       depositRecordAccount,
