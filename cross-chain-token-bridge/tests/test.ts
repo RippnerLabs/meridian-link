@@ -59,7 +59,7 @@ describe("test-anchor", () => {
 
 
     const conn = new Connection("http://localhost:8899", "confirmed");
-    const decimals = 9;
+    const decimals = 2;
     const mint = await createMint(conn, signer, signer.publicKey, signer.publicKey, decimals);
     const ata = await getOrCreateAssociatedTokenAccount(conn, signer, mint, signer.publicKey);
     const amount = BigInt(1000) * BigInt(10**decimals);
@@ -80,7 +80,7 @@ describe("test-anchor", () => {
     const dest_chain_id = 31337;
     const ethHex = "8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199"; // lower-case, no 0x
     const dest_chain_addr = bs58.encode(Buffer.from(ethHex, "hex"));
-    const dest_chain_mint_addr = bs58.encode(Buffer.from("9fe46736679d2d9a65f0992f2272de9f3c7fa6e0", "hex"));
+    const dest_chain_mint_addr = bs58.encode(Buffer.from("610178da211fef7d417bc0e6fed39f05609ad788", "hex"));
     await initTokenBridgeCall(rpc, program, signer, mint, dest_chain_id, dest_chain_mint_addr);
     await CreateDepositRecordCompressedAccount(
       rpc,
@@ -258,7 +258,7 @@ async function CreateDepositRecordCompressedAccount(
     });
 
     let tx = await program.methods
-      .deposit(proof, packedAddressMerkleContext, outputMerkleTreeIndex, bn(100), destChainId, destChainAddr)
+      .deposit(proof, packedAddressMerkleContext, outputMerkleTreeIndex, bn(100 * 10 ** 2), destChainId, destChainAddr)
       .accounts({
         signer: signer.publicKey,
         mint: mint,
@@ -298,13 +298,15 @@ async function CreateDepositRecordCompressedAccount(
 
     fs.writeFileSync("../proof.json", JSON.stringify(accProof));
     fs.writeFileSync("../account.json", JSON.stringify(depositRecordAccount));
-    fs.writeFileSync("../record.json", JSON.stringify(depositRecord));
-    const circuitInputs = buildInputs(
-      depositRecord,
-      depositRecordAccount,
-      accProof,
-    );
-    fs.writeFileSync("../circom/input.json", JSON.stringify(circuitInputs));
+    
+    // Convert BN amount to decimal string before writing to record.json
+    const recordForJson = {
+      ...depositRecord,
+      amount: depositRecord.amount.toString(),
+      timestamp: depositRecord.timestamp.toString(),
+      deposit_id: depositRecord.deposit_id.toString(),
+    };
+    fs.writeFileSync("../record.json", JSON.stringify(recordForJson));
   }
 }
 

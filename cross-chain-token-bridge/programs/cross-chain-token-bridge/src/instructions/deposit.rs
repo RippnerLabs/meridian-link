@@ -120,6 +120,7 @@ pub fn deposit_handler<'info> (
     
     deposit_record.owner = ctx.accounts.signer.key();
     deposit_record.mint = ctx.accounts.mint.key();
+    msg!("amount {:?}", amount);
     deposit_record.amount = amount;
     deposit_record.source_chain_id = SOURCE_CHAIN_ID;
     deposit_record.dest_chain_id = dest_chain_id;

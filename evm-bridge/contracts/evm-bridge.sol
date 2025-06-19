@@ -20,17 +20,31 @@ contract SolanaEVMBridge is Ownable {
     SolDepositVerifier public immutable verifier;
     
     // deposit - record.json
-    struct DepositRecord {
+    struct SolDepositRecord {
         string owner;                // Solana owner pubkey
         uint32 sourceChainId;        // Source chain ID (Solana = 1)
         uint32 destChainId;          // Destination chain ID
-        string destChainAddr;        // Destination address (base58 format)
+        address destChainAddr;        // Destination address (base58 format)
         address destChainMintAddr;   // ERC20 token contract address
         string mint;                 // Solana mint pubkey
         uint256 amount;              // Token amount
         string timestamp;           // Deposit timestamp
         uint256 depositId;           // Unique deposit ID
     }
+
+    event EthDeposit(
+        address indexed depositer,
+        uint32 sourceChainId,
+        uint32 destChainId,
+        string destChainAddr,
+        string destChainMintAddr,
+        address tokenMint,
+        uint256 amount,
+        string timestamp,
+        uint256 depositId
+    );
+
+    uint256 public depositCount;
 
     struct ZKProof {
         uint[2] a;
@@ -74,37 +88,23 @@ contract SolanaEVMBridge is Ownable {
     }
 
     function processWithdrawal(
-        DepositRecord calldata record,
+        SolDepositRecord calldata record,
         ZKProof calldata proof
     ) external 
     // nonReentrant whenNotPaused 
     {
-        
-        // Basic validation
         require(record.sourceChainId == SOLANA_CHAIN_ID, "Invalid source chain");
-        // require(record.destChainId == block.chainid, "Invalid destination chain");
         require(record.amount >= minAmount, "Amount too small");
-        // require(!usedNullifiers[proof.nullifier], "Nullifier already used");
-        
-        // Verify state root is valid
-        require(validStateRoots[proof.publicSignals[0]], "Invalid state root");
         
         // Get recipient address
-        address recipient = getRecipientAddress(record.destChainAddr);
+        address recipient = record.destChainAddr;
         require(recipient != address(0), "Invalid recipient address");
+        require(!usedNullifiers[proof.publicSignals[0]], "Nullifier already used");
+        usedNullifiers[proof.publicSignals[0]] = true;
         
-        // Get token contract
         require(record.destChainMintAddr != address(0), "Invalid token contract");
         IERC20 token = IERC20(record.destChainMintAddr);
-        
-        // Verify public signals match record data
-        // require(proof.publicSignals[1] == record.amount, "Amount mismatch");
-        // require(proof.publicSignals[2] == record.destChainId, "Chain ID mismatch");
-        
-        // Convert destChainAddr to uint256 for comparison
-        // uint256 destChainAddrHash = uint256(keccak256(abi.encodePacked(record.destChainAddr))) >> 8; // Truncate to fit field
-        // require(proof.publicSignals[3] == destChainAddrHash, "Destination address mismatch");
-        
+
         // Verify ZK proof
         require(
             verifier.verifyProof(
@@ -115,20 +115,7 @@ contract SolanaEVMBridge is Ownable {
             ),
             "Invalid ZK proof"
         );
-        
-        // Verify commitment
-        // uint256 expectedCommitment = computeCommitment(
-        //     record.amount,
-        //     destChainAddrHash,
-        //     record.destChainId,
-        //     proof.nullifier
-        // );
-        // require(proof.commitment == expectedCommitment, "Invalid commitment");
-        
-        // Mark nullifier as used to prevent replay
-        // usedNullifiers[proof.nullifier] = true;
-        
-        // Transfer tokens to recipient
+
         uint256 contractBalance = token.balanceOf(address(this));
         require(contractBalance >= record.amount, "Insufficient contract balance");
         
@@ -140,14 +127,6 @@ contract SolanaEVMBridge is Ownable {
             record.destChainMintAddr,
             record.amount
         );
-    }
-
-    /**
-     * @dev Update Solana state root (called by authorized relayers)
-     */
-    function updateStateRoot(uint256 stateRoot, uint256 blockHeight) external onlyAuthorized {
-        validStateRoots[stateRoot] = true;
-        emit StateRootUpdated(stateRoot, blockHeight, msg.sender);
     }
 
     /**
@@ -164,62 +143,6 @@ contract SolanaEVMBridge is Ownable {
         tokenMapping[solanaMint] = tokenContract;
     }
 
-    /**
-     * @dev Get recipient address from base58 string
-     */
-    function getRecipientAddress(string memory destChainAddr) public view returns (address) {
-        // First check if there's a manual mapping
-        address mapped = addressMapping[destChainAddr];
-        if (mapped != address(0)) {
-            return mapped;
-        }
-        
-        // Try to decode as hex (if it's already an Ethereum address in hex format)
-        if (bytes(destChainAddr).length == 42) { // "0x" + 40 hex chars
-            return parseHexAddress(destChainAddr);
-        }
-        
-        // For now, return zero address if no mapping found
-        // In production, implement proper base58 to address conversion
-        return address(0);
-    }
-
-    /**
-     * @dev Parse hex string to address
-     */
-    function parseHexAddress(string memory hexStr) internal pure returns (address) {
-        bytes memory data = bytes(hexStr);
-        require(data.length == 42, "Invalid hex address length");
-        require(data[0] == '0' && data[1] == 'x', "Invalid hex prefix");
-        
-        uint160 result = 0;
-        for (uint i = 2; i < 42; i++) {
-            uint8 digit = uint8(data[i]);
-            if (digit >= 48 && digit <= 57) {
-                result = result * 16 + (digit - 48);
-            } else if (digit >= 65 && digit <= 70) {
-                result = result * 16 + (digit - 55);
-            } else if (digit >= 97 && digit <= 102) {
-                result = result * 16 + (digit - 87);
-            } else {
-                revert("Invalid hex character");
-            }
-        }
-        return address(result);
-    }
-
-    /**
-     * @dev Compute expected commitment for validation
-     */
-    function computeCommitment(
-        uint256 amount,
-        uint256 destChainAddr,
-        uint256 destChainId,
-        uint256 nullifier
-    ) internal pure returns (uint256) {
-        return uint256(keccak256(abi.encodePacked(amount, destChainAddr, destChainId, nullifier))) >> 8;
-    }
-
     // Admin functions
     function addAuthorizedRelayer(address relayer) external onlyOwner {
         authorizedRelayers[relayer] = true;
@@ -232,7 +155,6 @@ contract SolanaEVMBridge is Ownable {
     function setMinAmount(uint256 _minAmount) external onlyOwner {
         minAmount = _minAmount;
     }
-
 
     /**
      * @dev Deposit tokens to the bridge contract (for liquidity)
