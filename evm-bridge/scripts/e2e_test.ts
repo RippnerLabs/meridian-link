@@ -39,8 +39,8 @@ async function deploy() {
   const userBalance = await token.read.balanceOf([deployer.account.address]);
   const bridgeBalance = await token.read.balanceOf([bridge.address]);
 
-  console.log(`  💰 User token balance: ${userBalance}`);
-  console.log(`  🏦 Bridge token balance: ${bridgeBalance}`);
+  console.log(`User token balance: ${userBalance}`);
+  console.log(`Bridge token balance: ${bridgeBalance}`);
 
   ADDRESS_BOOK.Verfier = verifier.address;
   ADDRESS_BOOK.Bridge = bridge.address;
@@ -148,4 +148,38 @@ async function main() {
     }
 }
 
-main()
+async function depositEth() {
+  await deploy();
+  const [deployer] = await hre.viem.getWalletClients();
+  const publicClient = await hre.viem.getPublicClient();
+
+  const bridge = await hre.viem.getContractAt('SolanaEVMBridge', ADDRESS_BOOK.Bridge);
+  const token = await hre.viem.getContractAt('BridgeToken', ADDRESS_BOOK.Token);
+
+  await token.write.mint([deployer.account.address, 10000n]); // Mint 100 tokens (decimals = 2)
+
+  console.log('user token balance', await token.read.balanceOf([deployer.account.address]));
+
+  // Approve the bridge contract to spend user's tokens
+  const approveAmount = 1000n; // 10 tokens
+  await token.write.approve([ADDRESS_BOOK.Bridge, approveAmount]);
+  console.log('approved bridge to spend:', approveAmount);
+
+  const tx = await bridge.write.deposit([
+    31337,                                 // sourceChainId (Hardhat network)
+    1,                                      // destChainId (Solana)
+    "7fD1uH15XByFTnGjDZr5tFQjxtaWBZUYpecXeesr1jom", // destChainAddr (Solana base58)
+    "GQFkxJFQp5eY5zrkbyXK9EVuBezyuZBjrjzyg1u8RVwW", // destChainMintAddr (Solana mint)
+    ADDRESS_BOOK.Token,                     // tokenMint (ERC-20 address)
+    1000n                                   // amount (10 tokens, since decimals = 2)
+  ]);
+
+  const receipt = await publicClient.waitForTransactionReceipt({hash: tx});
+
+  console.log('receipt', receipt);
+  console.log('user balance', await token.read.balanceOf([deployer.account.address]));
+
+}
+
+// main()
+depositEth()

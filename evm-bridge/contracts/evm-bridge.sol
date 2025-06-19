@@ -40,7 +40,7 @@ contract SolanaEVMBridge is Ownable {
         string destChainMintAddr,
         address tokenMint,
         uint256 amount,
-        string timestamp,
+        uint256 timestamp,
         uint256 depositId
     );
 
@@ -85,6 +85,30 @@ contract SolanaEVMBridge is Ownable {
     constructor(address _addr) Ownable(msg.sender) {
         verifier = SolDepositVerifier(_addr);
         authorizedRelayers[msg.sender] = true;
+    }
+
+    function deposit(
+        uint32 sourceChainId,
+        uint32 destChainId,
+        string memory destChainAddr,
+        string memory destChainMintAddr,
+        address tokenMint,
+        uint256 amount
+    ) external {
+        require(sourceChainId == block.chainid, "Invalid source chain");
+        require(destChainId == SOLANA_CHAIN_ID, "Invalid destination chain");
+        // additional checcks for solana address
+        require(bytes(destChainAddr).length > 0, "Invalid destination address");
+        require(bytes(destChainMintAddr).length > 0, "Invalid destination mint address");
+        require(tokenMint != address(0), "Invalid token mint address");
+
+        IERC20 token = IERC20(tokenMint);
+        uint256 userbalance = token.balanceOf(msg.sender);
+        require(userbalance >= amount, "Amount too small");
+
+        token.safeTransferFrom(msg.sender, address(this), amount);
+
+        emit EthDeposit(msg.sender, sourceChainId, destChainId, destChainAddr, destChainMintAddr, tokenMint, amount, block.timestamp, depositCount++);
     }
 
     function processWithdrawal(
