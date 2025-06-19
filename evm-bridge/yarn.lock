@@ -19,6 +19,11 @@
   dependencies:
     "@jridgewell/trace-mapping" "0.3.9"
 
+"@ethereumjs/rlp@^10.0.0":
+  version "10.0.0"
+  resolved "https://registry.npmjs.org/@ethereumjs/rlp/-/rlp-10.0.0.tgz"
+  integrity sha512-h2SK6RxFBfN5ZGykbw8LTNNLckSXZeuUZ6xqnmtF22CzZbHflFMcIOyfVGdvyCVQqIoSbGMHtvyxMCWnOyB9RA==
+
 "@ethereumjs/rlp@^4.0.1":
   version "4.0.1"
   resolved "https://registry.npmjs.org/@ethereumjs/rlp/-/rlp-4.0.1.tgz"
@@ -1476,6 +1481,11 @@ circom_runtime@0.1.28:
   integrity sha512-ACagpQ7zBRLKDl5xRZ4KpmYIcZDUjOiNRuxvXLqhnnlLSVY1Dbvh73TI853nqoR0oEbihtWmMSjgc5f+pXf/jQ==
   dependencies:
     ffjavascript "0.3.1"
+
+circomlib@^2.0.5:
+  version "2.0.5"
+  resolved "https://registry.npmjs.org/circomlib/-/circomlib-2.0.5.tgz"
+  integrity sha512-O7NQ8OS+J4eshBuoy36z/TwQU0YHw8W3zxZcs4hVwpEll3e4hDm3mgkIPqItN8FDeLEKZFK3YeT/+k8TiLF3/A==
 
 clean-stack@^2.0.0:
   version "2.2.0"
@@ -3105,6 +3115,11 @@ pify@^4.0.1:
   version "4.0.1"
   resolved "https://registry.npmjs.org/pify/-/pify-4.0.1.tgz"
   integrity sha512-uB80kBFb/tfd68bVleG9T5GGsGPjJrLAUpR5PZIrhBnIaRTQRjqdJSsIKkOP6OAIFbj7GOrcudc5pNjZ+geV2g==
+
+poseidon-lite@^0.3.0:
+  version "0.3.0"
+  resolved "https://registry.npmjs.org/poseidon-lite/-/poseidon-lite-0.3.0.tgz"
+  integrity sha512-ilJj4MIve4uBEG7SrtPqUUNkvpJ/pLVbndxa0WvebcQqeIhe+h72JR4g0EvwchUzm9sOQDlOjiDNmRAgxNZl4A==
 
 prelude-ls@~1.1.2:
   version "1.1.2"
