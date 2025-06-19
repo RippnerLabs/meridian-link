@@ -166,19 +166,40 @@ async function depositEth() {
   console.log('approved bridge to spend:', approveAmount);
 
   const tx = await bridge.write.deposit([
-    31337,                                 // sourceChainId (Hardhat network)
-    1,                                      // destChainId (Solana)
-    "7fD1uH15XByFTnGjDZr5tFQjxtaWBZUYpecXeesr1jom", // destChainAddr (Solana base58)
-    "GQFkxJFQp5eY5zrkbyXK9EVuBezyuZBjrjzyg1u8RVwW", // destChainMintAddr (Solana mint)
-    ADDRESS_BOOK.Token,                     // tokenMint (ERC-20 address)
-    1000n                                   // amount (10 tokens, since decimals = 2)
+    31337,
+    1,
+    "7fD1uH15XByFTnGjDZr5tFQjxtaWBZUYpecXeesr1jom",
+    "GQFkxJFQp5eY5zrkbyXK9EVuBezyuZBjrjzyg1u8RVwW",
+    ADDRESS_BOOK.Token,
+    1000n
   ]);
 
   const receipt = await publicClient.waitForTransactionReceipt({hash: tx});
 
   console.log('receipt', receipt);
   console.log('user balance', await token.read.balanceOf([deployer.account.address]));
-
+  //  get  the events emmited from the tx 
+  const events = await publicClient.getLogs({
+    address: bridge.address,
+    event: {
+      type: 'event',
+      name: 'EthDeposit',
+      inputs: [
+        { name: 'depositer', type: 'address', indexed: true },
+        { name: 'sourceChainId', type: 'uint32', indexed: false },
+        { name: 'destChainId', type: 'uint32', indexed: false },
+        { name: 'destChainAddr', type: 'string', indexed: false },
+        { name: 'destChainMintAddr', type: 'string', indexed: false },
+        { name: 'tokenMint', type: 'address', indexed: false },
+        { name: 'amount', type: 'uint256', indexed: false },
+        { name: 'timestamp', type: 'uint256', indexed: false },
+        { name: 'depositId', type: 'uint256', indexed: false }
+      ]
+    },
+    fromBlock: receipt.blockNumber,
+    toBlock: receipt.blockNumber
+  });
+  console.log('events', events);
 }
 
 // main()
