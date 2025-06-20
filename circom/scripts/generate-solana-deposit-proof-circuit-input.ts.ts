@@ -5,6 +5,7 @@ import {
 } from "@lightprotocol/stateless.js";
 import BN from "bn.js";
 import {PublicKey} from "@solana/web3.js";
+import path from "path";
 
 interface DepositRecord {
     owner: string,
@@ -123,10 +124,12 @@ function generateCircuitInput(): any {
     }
 }
 
+const integrationTestsDir = path.join(__dirname, "../../integration-tests");
+
 function writeInputToFile() {
     try {
         const input = generateCircuitInput();
-        fs.writeFileSync("../input.json", JSON.stringify(input, null, 2));
+        fs.writeFileSync(path.join(integrationTestsDir, "input.json"), JSON.stringify(input, null, 2));
     } catch (err) {
         throw new Error(err);
     }

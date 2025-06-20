@@ -40,9 +40,6 @@ pub mod cross_chain_token_bridge {
     ) -> Result<()> {
         return deposit_handler(ctx,  proof, address_merkle_context, output_merkle_tree_index, amount, dest_chain_id, dest_chain_addr)
     }
-    // pub fn deposit<'info>(
-    //     ctx: Context<'_,'_,'_,'info, 
-    // )
 
     pub fn create<'info>(
         ctx: Context<'_, '_, '_, 'info, GenericAnchorAccounts<'info>>,
