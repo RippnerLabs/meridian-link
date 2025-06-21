@@ -34,7 +34,7 @@ export async function deploy() {
   console.log("token", token.address);
 
   // mint tokens to bridge contract
-  const mintAmount = parseEther("1000000"); //1M
+  const mintAmount = parseEther("100000000"); //1M
   await token.write.mint([bridge.address, mintAmount]);
 
   // Get token balances

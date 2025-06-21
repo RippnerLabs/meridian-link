@@ -38,7 +38,7 @@ async function deploy() {
   console.log("token", token.address);
 
   // mint tokens to bridge contract
-  const mintAmount = parseEther("1000000"); //1M
+  const mintAmount = parseEther("1000000"); //10k
   await token.write.mint([bridge.address, mintAmount]);
 
   // Get token balances
@@ -90,7 +90,7 @@ async function depositEth() {
       type: 'event',
       name: 'EthDeposit',
       inputs: [
-        { name: 'depositer', type: 'address', indexed: true },
+        { name: 'depositor', type: 'address', indexed: true },
         { name: 'sourceChainId', type: 'uint32', indexed: false },
         { name: 'destChainId', type: 'uint32', indexed: false },
         { name: 'destChainAddr', type: 'string', indexed: false },
@@ -146,7 +146,7 @@ async function depositEth() {
     transactionIndex: finalizedReceipt.transactionIndex.toString(),
     
     // deposit data from event
-    depositer: depositEvent.args.depositer,
+    depositor: depositEvent.args.depositor,
     sourceChainId: depositEvent.args.sourceChainId.toString(),
     destChainId: depositEvent.args.destChainId.toString(),
     destChainAddr: depositEvent.args.destChainAddr,
@@ -243,13 +243,14 @@ async function depositEth() {
     receiptsRoot: hexToFieldElement(receiptProofData.receiptsRoot),
     receiptHash: hexToFieldElement(receiptProofData.receiptHash),
     logHash: hexToFieldElement(logProofData.logHash),
+    logsRoot: hexToFieldElement(logProofData.logsRoot),
     amount: (depositEvent.args.amount || 0n).toString(),
     sourceChainId: (depositEvent.args.sourceChainId || 0n).toString(),
     destChainId: (depositEvent.args.destChainId || 0n).toString(),
     destChainAddr: hexToFieldElement('0x' + Buffer.from(depositEvent.args.destChainAddr || '', 'utf8').toString('hex')),
     destChainMintAddr: hexToFieldElement('0x' + Buffer.from(depositEvent.args.destChainMintAddr || '', 'utf8').toString('hex')),
     tokenMint: hexToFieldElement(depositEvent.args.tokenMint || '0x0'),
-    depositer: hexToFieldElement(depositEvent.args.depositer || '0x0'),
+    depositor: hexToFieldElement(depositEvent.args.depositor || '0x0'),
     timestamp: (depositEvent.args.timestamp || 0n).toString(),
     depositId: (depositEvent.args.depositId || 0n).toString()
   };
@@ -269,7 +270,7 @@ async function depositEth() {
   console.log(`  - Receipt proof: ${receiptProofData.proof.length} levels`);
   console.log(`  - Log proof: ${logProofData.proof.length} levels`);
   console.log(`  - Amount: ${ethDepositCircuitInput.amount} tokens`);
-  console.log(`  - Depositer: ${depositEvent.args.depositer}`);
+  console.log(`  - Depositer: ${depositEvent.args.depositor}`);
   console.log(`  - Secret: ${secret.toString().slice(0, 20)}...`);
   const ethInputs = await createEthDepositProof();
   return {

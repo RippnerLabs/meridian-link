@@ -33,7 +33,7 @@ contract SolanaEVMBridge is Ownable {
     }
 
     event EthDeposit(
-        address indexed depositer,
+        address indexed depositor,
         uint32 sourceChainId,
         uint32 destChainId,
         string destChainAddr,

@@ -281,7 +281,7 @@ async function CreateDepositRecordCompressedAccount(
     console.log("created deposit record", sig);
 
     await sleep(4000);
-      console.log("compressed acc addr", bn(address.toBytes()));
+      console.log("compressed acc addr", address.toString());
     let depositRecordAccount = await rpc.getCompressedAccount(bn(address.toBytes()));
     console.log("depositRecordAccount", depositRecordAccount);
 
@@ -295,11 +295,6 @@ async function CreateDepositRecordCompressedAccount(
     // console.log("des depositRecord ", depositRecord);
     const accProof = await rpc.getCompressedAccountProof(depositRecordAccount.hash);
 
-    // console.log("depositRecord accProof ", accProof);
-    console.log(depositRecord,
-      depositRecordAccount,
-      accProof)
-
     const integrationTestsDir = path.join(__dirname, "../../integration-tests");
     // Convert BN amount to decimal string before writing to record.json
     const recordForJson = {
@@ -311,7 +306,6 @@ async function CreateDepositRecordCompressedAccount(
     fs.writeFileSync(path.join(integrationTestsDir, "record.json"), JSON.stringify(recordForJson));
     fs.writeFileSync(path.join(integrationTestsDir, "proof.json"), JSON.stringify(accProof));
     fs.writeFileSync(path.join(integrationTestsDir, "account.json"), JSON.stringify(depositRecordAccount));
-    
   }
 }
 

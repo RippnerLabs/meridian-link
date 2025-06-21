@@ -82,7 +82,7 @@ async function main() {
     await token.write.mint([deployer.account.address, 20000n]);
     console.log('User token balance after mint:', await token.read.balanceOf([deployer.account.address]));
 
-    const approveAmount = 20000n; // 200 tokens
+    const approveAmount = 20000n;
     await token.write.approve([bridgeAddress, approveAmount]);
   
     const proof = await createProof();

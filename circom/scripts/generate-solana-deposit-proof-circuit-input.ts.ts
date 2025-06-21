@@ -20,6 +20,7 @@ interface DepositRecord {
 }
 
 function hexToField(hex: string) {
+    console.log("hex", hex);
     // 16 specifies the input string is a hex
     const bn = new BN(hex.replace("0x", ''), 16);
     // we want the output string to base 10 decimal
@@ -72,7 +73,7 @@ function generateCircuitInput(): any {
         const proofData:MerkleContextWithMerkleProof = JSON.parse(fs.readFileSync("../proof.json", 'utf8'))
         const accountData: CompressedAccountWithMerkleContext = JSON.parse(fs.readFileSync("../account.json", "utf8"));
         const recordData: DepositRecord = JSON.parse(fs.readFileSync("../record.json", "utf8"));
-
+        console.log("proofData.root", proofData.root);
         const stateRoot = hexToField(proofData.root);
         const amount = recordData.amount;
         const destChainId = recordData.dest_chain_id.toString();

@@ -1,0 +1,45 @@
+{
+  "name": "relayer-ts",
+  "version": "1.0.0",
+  "description": "TypeScript relayer server for cross-chain bridge",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "ts-node src/server.ts",
+    "watch": "ts-node --watch src/server.ts"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.31.1",
+    "@jayanth-kumar-morem/indexed-merkle-tree": "^1.1.2",
+    "@lightprotocol/stateless.js": "^0.21.0",
+    "@solana/web3.js": "^1.87.6",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.3",
+    "bn.js": "^5.2.1",
+    "bs58": "^6.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "ethers": "^6.14.4",
+    "express": "^5.1.0",
+    "poseidon-lite": "^0.3.0",
+    "snarkjs": "^0.7.5",
+    "web3": "^4.16.0",
+    "@jayanth-kumar-morem/snarkjs-to-solana": "file:/Users/jayanthkumar/Downloads/work/snarkjs-to-solana/dist"
+  },
+  "devDependencies": {
+    "@types/bn.js": "^5.1.5",
+    "@types/node": "^20.10.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "keywords": [
+    "solana",
+    "light-protocol",
+    "zk-compression",
+    "cross-chain",
+    "bridge"
+  ],
+  "author": "",
+  "license": "MIT"
+}
