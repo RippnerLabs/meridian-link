@@ -17,7 +17,6 @@ import {
   Rpc,
   sleep,
 } from "@lightprotocol/stateless.js";
-import { buildInputs } from "./utils";
 import bs58 from "bs58";
 
 const path = require("path");
@@ -29,7 +28,6 @@ process.env.ANCHOR_WALLET = anchorWalletPath;
 
 describe("test-anchor", () => {
   const program = anchor.workspace.CrossChainTokenBridge as Program<CrossChainTokenBridge>;
-  const coder = new anchor.BorshCoder(idl as anchor.Idl);
 
   it("", async () => {
     let signer = new web3.Keypair();
@@ -308,6 +306,17 @@ async function CreateDepositRecordCompressedAccount(
     fs.writeFileSync(path.join(integrationTestsDir, "account.json"), JSON.stringify(depositRecordAccount));
   }
 }
+
+
+async function CreateWithdrawalRecordCompressedAccount(
+  rpc:Rpc,
+  addressTree: anchor.web3.PublicKey,
+  addressQueue: anchor.web3.PublicKey,
+  address: anchor.web3.PublicKey,
+  program: anchor.Program<CrossChainTokenBridge>,
+  signer: anchor.web3.Keypair,
+  mint:
+)
 
 async function CreateCounterCompressedAccount(
   rpc: Rpc,
