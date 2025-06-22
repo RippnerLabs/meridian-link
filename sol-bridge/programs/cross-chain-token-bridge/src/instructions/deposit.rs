@@ -88,7 +88,6 @@ pub fn deposit_handler<'info> (
         crate::ID,
     ).map_err(ProgramError::from)?;
     
-    // Increment the global deposit counter (persist to account)
     let current_deposit_num = ctx.accounts
         .bridge_state
         .deposit_count

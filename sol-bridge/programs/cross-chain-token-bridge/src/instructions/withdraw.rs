@@ -64,7 +64,7 @@ pub fn withdraw_handler<'info>(
     depositer: String,
     source_chain_id: u64,
     source_token_mint: String,
-    withdrawalId: u128,
+    withdrawal_id: u128,
     proof_a: [u8; 64],
     proof_b: [u8; 128],
     proof_c: [u8; 64]
@@ -113,7 +113,7 @@ pub fn withdraw_handler<'info>(
     ctx.accounts.bridge_state.withdraw_count = current_withdrawl_num.clone();
 
     let (address, address_seed) = derive_address(
-        &[b"withdrawl", withdraw_addr.key().as_ref(), withdrawalId.to_le_bytes().as_ref()],
+        &[b"withdrawal", withdraw_addr.key().as_ref(), withdrawal_id.to_le_bytes().as_ref()],
         &light_cpi_accounts.tree_accounts()[address_merkle_context.address_merkle_tree_pubkey_index as usize].key(),
         &crate::ID);
 
@@ -138,7 +138,7 @@ pub fn withdraw_handler<'info>(
     withdrawl_record.tokenMint = source_token_mint;
     withdrawl_record.amount = amount;
     withdrawl_record.timestamp = Clock::get()?.unix_timestamp;
-    withdrawl_record.withdrawalId = withdrawalId;
+    withdrawl_record.withdrawalId = withdrawal_id;
 
     msg!("withdrawl_record: {:?}", withdrawl_record);
 

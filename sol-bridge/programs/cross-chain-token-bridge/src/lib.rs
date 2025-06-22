@@ -41,6 +41,24 @@ pub mod cross_chain_token_bridge {
         return deposit_handler(ctx,  proof, address_merkle_context, output_merkle_tree_index, amount, dest_chain_id, dest_chain_addr)
     }
 
+    pub fn withdraw<'info>(
+        ctx: Context<'_,'_,'_, 'info, WithdrawContext<'info>>,
+        proof: ValidityProof,
+        address_merkle_context: PackedAddressMerkleContext,
+        output_merkle_tree_index: u8,
+        amount: u64,
+        withdraw_addr: Pubkey,
+        depositer: String,
+        source_chain_id: u64,
+        source_token_mint: String,
+        withdrawal_id: u128,
+        proof_a: [u8;64],
+        proof_b: [u8; 128],
+        proof_c: [u8; 64]
+    ) -> Result<()> {
+        return withdraw_handler(ctx, proof, address_merkle_context, output_merkle_tree_index, amount, withdraw_addr, depositer, source_chain_id, source_token_mint, withdrawal_id, proof_a, proof_b, proof_c)
+    }
+
     pub fn create<'info>(
         ctx: Context<'_, '_, '_, 'info, GenericAnchorAccounts<'info>>,
         proof: ValidityProof,
