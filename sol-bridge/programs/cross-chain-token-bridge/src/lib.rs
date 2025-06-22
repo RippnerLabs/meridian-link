@@ -9,7 +9,7 @@ use light_sdk::{
     LightDiscriminator, LightHasher, NewAddressParamsPacked, ValidityProof,
 };
 mod state;
-
+mod zk;
 mod instructions;
 mod error;
 use instructions::*;

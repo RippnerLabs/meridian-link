@@ -22,3 +22,4 @@ anchor-lang = {version = "0.31.1", features=["init-if-needed"]}
 light-sdk = { version = "0.12.0", features = ["anchor"] }
 light-hasher = { version = "3.0.0", features = ["solana"] }
 anchor-spl = {version = "0.31.1", features = [] }
+groth16-solana = "0.2.0"

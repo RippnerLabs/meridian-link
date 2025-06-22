@@ -7,6 +7,7 @@ pub struct BridgeState {
     // [43312, ...]
     // pub valid_dest_chain_ids: Vec<u32>,
     pub deposit_count: u128,
+    pub withdraw_count: u128,
 }
 
 #[account]
@@ -38,6 +39,24 @@ pub struct DepositRecordCompressedAccount {
     pub timestamp: i64,
     #[hash]
     pub deposit_id: u128,
+}
+
+#[event]
+#[derive(
+    Clone, Debug, Default, LightDiscriminator, LightHasher
+)]
+pub struct WithdrawalRecordCompressedAccount {
+    pub depositer: String,
+    pub sourceChainId: u64,
+    pub destChainId: u64,
+    #[hash]
+    pub destChainAddr: Pubkey,
+    #[hash]
+    pub destChainMintAddr: Pubkey,
+    pub tokenMint: String,
+    pub amount: u64,
+    pub timestamp: i64,
+    pub withdrawalId: u128,
 }
 
 pub const SOURCE_CHAIN_ID: u32 = 1u32;

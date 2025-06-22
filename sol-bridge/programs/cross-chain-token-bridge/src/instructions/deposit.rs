@@ -1,5 +1,3 @@
-use std::io::Read;
-
 use anchor_lang::prelude::*;
 use anchor_spl::{associated_token::AssociatedToken, token_interface::{transfer_checked, Mint, TokenAccount, TransferChecked, TokenInterface}};
 use light_sdk::{account::LightAccount, address::v1::derive_address, cpi::{CpiAccounts, CpiInputs}, instruction::merkle_context::PackedAddressMerkleContext, light_compressed_account::pubkey::PubkeyTrait, NewAddressParams, NewAddressParamsPacked, ValidityProof};
@@ -82,7 +80,7 @@ pub fn deposit_handler<'info> (
         amount,
         ctx.accounts.mint.decimals
     )?;
-    
+
     let program_id = crate::ID.into();
     let light_cpi_accounts = CpiAccounts::new(
         ctx.accounts.signer.as_ref(),
