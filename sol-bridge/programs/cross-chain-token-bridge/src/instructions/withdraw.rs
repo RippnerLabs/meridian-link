@@ -11,13 +11,12 @@ use crate::{error::ErrorCode, state::{BridgeState, TokenBridge, WithdrawalProof,
     output_merkle_tree_index: u8,
     amount: u64,
     withdraw_addr: Pubkey,
-    depositer: String,
     link_hash: String,
     withdrawal_id: u128,
 )]
 pub struct WithdrawContext<'info> {
     #[account(mut)]
-    pub relayer: Signer<'info>,
+    pub signer: Signer<'info>,
 
     pub mint: InterfaceAccount<'info, Mint>,
 
@@ -55,7 +54,7 @@ pub struct WithdrawContext<'info> {
     #[account(
         mut,
         associated_token::mint = mint,
-        associated_token::authority = withdraw_addr,
+        associated_token::authority = signer,
         // associated_token::token_program = token_program,
     )]
     pub user_ata: InterfaceAccount<'info, TokenAccount>,
@@ -76,7 +75,6 @@ pub fn withdraw_handler<'info>(
     withdrawal_id: u128,
 ) -> Result<()> {
     require!(amount > 0, ErrorCode::WithdrawAmountShouldBeGreaterThanZero);
-
     // groth16_verifier(proof_a, proof_b, proof_c, &[nullifier, new_root], ETHDEPOSIT_VERIFYINGKEY);
 
     let transfer_checked_t = TransferChecked {
@@ -109,7 +107,7 @@ pub fn withdraw_handler<'info>(
 
     let program_id = crate::ID.into();
     let light_cpi_accounts = CpiAccounts::new(
-        ctx.accounts.relayer.as_ref(),
+        ctx.accounts.signer.as_ref(),
         ctx.remaining_accounts,
         crate::ID,
     ).map_err(ProgramError::from)?;
@@ -119,7 +117,7 @@ pub fn withdraw_handler<'info>(
     ctx.accounts.bridge_state.withdraw_count = current_withdrawl_num.clone();
 
     let (address, address_seed) = derive_address(
-        &[b"withdrawal", withdraw_addr.key().as_ref(), withdrawal_id.to_le_bytes().as_ref()],
+        &[b"withdrawal", ctx.accounts.signer.key().as_ref(), withdrawal_id.to_le_bytes().as_ref()],
         &light_cpi_accounts.tree_accounts()[address_merkle_context.address_merkle_tree_pubkey_index as usize].key(),
         &crate::ID);
 
@@ -141,7 +139,7 @@ pub fn withdraw_handler<'info>(
     // withdrawl_record.depositer = depositer;
     withdrawl_record.sourceChainId = token_bridge.source_chain as u64;
     withdrawl_record.destChainId = SOURCE_CHAIN_ID as u64;
-    withdrawl_record.destChainAddr = withdraw_addr;
+    withdrawl_record.destChainAddr = ctx.accounts.signer.key();
     withdrawl_record.destChainMintAddr = ctx.accounts.mint.key();
     withdrawl_record.tokenMint = token_bridge.source_chain_mint_addr.clone();
     withdrawl_record.amount = amount;

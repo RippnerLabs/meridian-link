@@ -22,7 +22,7 @@ import { ethers } from "ethers";
 import {IndexedMerkleTree, NonMembershipProof} from "@jayanth-kumar-morem/indexed-merkle-tree"
 import { poseidon9 } from "poseidon-lite";
 import * as fs from "fs";
-import { getSolanaCompatibleProof } from "@jayanth-kumar-morem/snarkjs-to-solana";
+const { getSolanaCompatibleProof } = require("@jayanth-kumar-morem/snarkjs-to-solana");
 
 // ABIs
 import BridgeToken from "../../evm-bridge/artifacts/contracts/BridgeToken.sol/BridgeToken.json";
@@ -312,6 +312,8 @@ evmBridgeContract.on(
         )
 
         const {proofA, proofB, proofC} = await getSolanaCompatibleProof(circuitProof);
+
+        console.log({proofA, proofB, proofC});
 
         imt.insert(nullifier);
         fs.writeFileSync(fileStorage, JSON.stringify(imt.serialize()));

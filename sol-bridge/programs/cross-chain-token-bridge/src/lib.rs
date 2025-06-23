@@ -52,6 +52,13 @@ pub mod cross_chain_token_bridge {
         return deposit_handler(ctx, proof, address_merkle_context, output_merkle_tree_index, amount, link_hash, dest_chain_addr);
     }
 
+    pub fn deposit_to_vault(
+        ctx: Context<DepositToVaultContext>,
+        amount: u64
+    ) -> Result<()> {
+        return deposit_to_vault_handler(ctx, amount);
+    }
+
     pub fn withdraw<'info>(
         ctx: Context<'_,'_,'_, 'info, WithdrawContext<'info>>,
         proof: ValidityProof,
@@ -59,7 +66,6 @@ pub mod cross_chain_token_bridge {
         output_merkle_tree_index: u8,
         amount: u64,
         withdraw_addr: Pubkey,
-        // depositer: String,
         link_hash: String,
         withdrawal_id: u128
     ) -> Result<()> {

@@ -1,6 +1,6 @@
 import fs from "fs";
 import {Connection, PublicKey} from "@solana/web3.js";
-import {createMint, getOrCreateAssociatedTokenAccount, mintTo, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID} from "@solana/spl-token";
+import {createMint, getAccount, getOrCreateAssociatedTokenAccount, mintTo, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID} from "@solana/spl-token";
 import * as anchor from "@coral-xyz/anchor";
 import { Program, web3 } from "@coral-xyz/anchor";
 import { CrossChainTokenBridge } from "../target/types/cross_chain_token_bridge";
@@ -66,6 +66,7 @@ describe("test-anchor", () => {
     const mintSig = await mintTo(
       conn, signer, mint, ata.address,signer, amount
     );
+    await depositToTokenVault(rpc, signer, program, mint);
 
     const depositRecordSeed = deriveAddressSeed(
       [
@@ -86,8 +87,9 @@ describe("test-anchor", () => {
       "hex"
     ));
     const SOLANA_CHAIN_ID = 1;
-    // await initTokenBridgeCall(rpc, program, signer, SOLANA_CHAIN_ID, mint.toString(), dest_chain_id, dest_chain_mint_addr);
-    // await initTokenBridgeCall(rpc, program, signer, dest_chain_id, dest_chain_mint_addr, SOLANA_CHAIN_ID, mint.toString());
+    await initTokenBridgeCall(rpc, program, signer, dest_chain_id, dest_chain_mint_addr, SOLANA_CHAIN_ID, mint.toString());
+
+    await initTokenBridgeCall(rpc, program, signer, SOLANA_CHAIN_ID, mint.toString(), dest_chain_id, dest_chain_mint_addr);
 
     // await CreateDepositRecordCompressedAccount(
     //   rpc,
@@ -103,13 +105,13 @@ describe("test-anchor", () => {
     //   dest_chain_id,
     //   dest_chain_mint_addr,
     //   dest_chain_addr,
-    // )
-
+    // );
+    const withdrawKp = anchor.web3.Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(path.join(__dirname, "../../keys/signer.json"), "utf8"))));
     const withdrawalRecordSeed = deriveAddressSeed(
       [
         new TextEncoder().encode("withdrawal"),
-        signer.publicKey.toBytes(),
-        bn(1).toArrayLike(Buffer, 'le', 16),
+        withdrawKp.publicKey.toBytes(),
+        bn(2).toArrayLike(Buffer, 'le', 16),
       ],
       new web3.PublicKey(program.idl.address)
     )
@@ -129,7 +131,7 @@ describe("test-anchor", () => {
       dest_chain_mint_addr,
       SOLANA_CHAIN_ID,
       mint.toString(),
-    )
+    );
     // Create counter compressed account.
     // await CreateCounterCompressedAccount(
     //   rpc,
@@ -254,6 +256,30 @@ async function initTokenBridgeCall(
   }
 }
 
+async function depositToTokenVault(
+  rpc: Rpc,
+  signer: anchor.web3.Keypair,
+  program: anchor.Program<CrossChainTokenBridge>,
+  mint: PublicKey,
+) {
+  {
+    const tx = await program.methods
+    .depositToVault(bn(50 * 10 ** 2))
+    .accounts({
+      signer: signer.publicKey,
+      mint: mint,
+      tokenProgram: TOKEN_PROGRAM_ID
+    })
+    .signers([signer])
+    .transaction();
+
+    tx.recentBlockhash = (await rpc.getRecentBlockhash()).blockhash;
+    const sig = await rpc.sendTransaction(tx, [signer]);
+    await rpc.confirmTransaction(sig, "finalized");
+    console.log("depositToTokenVault sig:", sig);
+  }
+}
+
 async function CreateDepositRecordCompressedAccount(
   rpc: Rpc,
   addressTree: anchor.web3.PublicKey,
@@ -371,43 +397,9 @@ async function CreateWithdrawalRecordCompressedAccount(
   dest_chain_mint_addr: string,
 ) {
   {
-    const proofRpcResult = await rpc.getValidityProofV0(
-      [],
-      [
-        {
-          tree: addressTree,
-          queue: addressQueue,
-          address: bn(address.toBytes())
-        }
-      ]
-    );
-
-    const systemAccountConfig = SystemAccountMetaConfig.new(program.programId);
-    let remainingAccounts = PackedAccounts.newWithSystemAccounts(systemAccountConfig);
-    const addressMerkleTreePubkeyIndex = remainingAccounts.insertOrGet(addressTree);
-    const addressQueuePubkeyIndex = remainingAccounts.insertOrGet(addressQueue);
-    const packedAddressMerkleContext = {
-      rootIndex: proofRpcResult.rootIndices[0],
-      addressMerkleTreePubkeyIndex,
-      addressQueuePubkeyIndex
-    };
-    const outputMerkleTreeIndex = remainingAccounts.insertOrGet(outputMerkleTree);
-    let proof = {
-      0: proofRpcResult.compressedProof,
-    }
-    const computeBudgetIx = web3.ComputeBudgetProgram.setComputeUnitLimit({
-      units: 1_000_000,
-    });
-    console.log(1)
-    const withdrawKp = anchor.web3.Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(path.join(__dirname, "../../keys/signer.json"), "utf8"))));
-    console.log(2)
-
-    const linkHash = require('crypto').createHash('sha256').update(`${source_chain}_${source_chain_mint_addr}_${dest_chain_id}_${dest_chain_mint_addr}`).digest('hex').slice(0, 16);
-    console.log(3)
-
     // create withdrawalProof account and write the data into that account
     const withdrawalProofTx = await program.methods.initWithdrawalProofAccount(
-      bn(1),
+      bn(2),
       [14,58,244,221,122,68,66,81,213,157,63,61,7,190,118,65,192,146,144,180,155,55,213,242,31,230,7,79,51,113,237,169,44,205,233,37,188,227,130,185,222,44,198,182,102,234,116,74,16,151,178,93,26,55,87,92,176,81,238,23,165,142,209,226],
       [
         29, 228, 78, 154, 16, 24, 136, 0, 188, 126, 229, 20, 31, 194, 17, 160,
@@ -442,31 +434,78 @@ async function CreateWithdrawalRecordCompressedAccount(
     await rpc.confirmTransaction(sig1, "finalized");
     console.log("created withdrawal proof", sig1);
 
+    const withdrawKp = anchor.web3.Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(path.join(__dirname, "../../keys/signer.json"), "utf8"))));
+
+    // get the balance of mint tokens for withdrawKp
+    const withdrawKpAta = await getOrCreateAssociatedTokenAccount(
+      new Connection("http://localhost:8899", "confirmed"),
+      withdrawKp,
+      mint,
+      withdrawKp.publicKey
+    );
+    const withdrawKpBalance = await getAccount(
+      new Connection("http://localhost:8899", "confirmed"),
+      withdrawKpAta.address
+    );
+    console.log("withdrawKp token balance before withdrawal:", withdrawKpBalance.amount.toString());
+
+    const proofRpcResult = await rpc.getValidityProofV0(
+      [],
+      [
+        {
+          tree: addressTree,
+          queue: addressQueue,
+          address: bn(address.toBytes())
+        }
+      ]
+    );
+
+    const systemAccountConfig = SystemAccountMetaConfig.new(program.programId);
+    let remainingAccounts = PackedAccounts.newWithSystemAccounts(systemAccountConfig);
+    const addressMerkleTreePubkeyIndex = remainingAccounts.insertOrGet(addressTree);
+    const addressQueuePubkeyIndex = remainingAccounts.insertOrGet(addressQueue);
+    const packedAddressMerkleContext = {
+      rootIndex: proofRpcResult.rootIndices[0],
+      addressMerkleTreePubkeyIndex,
+      addressQueuePubkeyIndex
+    };
+    const outputMerkleTreeIndex = remainingAccounts.insertOrGet(outputMerkleTree);
+    let proof = {
+      0: proofRpcResult.compressedProof,
+    }
+    console.log(1)
+
+    const linkHash = require('crypto').createHash('sha256').update(`${source_chain}_${source_chain_mint_addr}_${dest_chain_id}_${dest_chain_mint_addr}`).digest('hex').slice(0, 16);
+    console.log(3)
+
+    const computeBudgetIx = web3.ComputeBudgetProgram.setComputeUnitLimit({
+      units: 1_000_000,
+    });
     const tx = await program.methods
     .withdraw(
       proof,
       packedAddressMerkleContext,
       outputMerkleTreeIndex,
-      bn(100 * 10*2),
+      bn(50 * 10*2),
       withdrawKp.publicKey,
       linkHash,
-      bn(1),
+      bn(2),
     )
     .accounts({
-      relayer: signer.publicKey,
+      signer: withdrawKp.publicKey,
       mint: mint,
       tokenProgram: TOKEN_PROGRAM_ID
     })
     .preInstructions([computeBudgetIx])
     .remainingAccounts(remainingAccounts.toAccountMetas().remainingAccounts)
-    .signers([signer])
+    .signers([withdrawKp])
     .transaction();
     console.log(4)
 
     tx.recentBlockhash = (await rpc.getRecentBlockhash()).blockhash;
-    tx.sign(signer);
+    tx.sign(withdrawKp);
 
-    const sig = await rpc.sendTransaction(tx, [signer]);
+    const sig = await rpc.sendTransaction(tx, [withdrawKp], {skipPreflight: true});
     await rpc.confirmTransaction(sig, "finalized");
     console.log("created withdraw record", sig);
 
@@ -491,11 +530,23 @@ async function CreateWithdrawalRecordCompressedAccount(
     ...depositRecord,
     amount: depositRecord.amount.toString(),
     timestamp: depositRecord.timestamp.toString(),
-    deposit_id: depositRecord.deposit_id.toString(),
   };
   fs.writeFileSync(path.join(integrationTestsDir, "withdrawal_record.json"), JSON.stringify(recordForJson));
   fs.writeFileSync(path.join(integrationTestsDir, "withdrawal_proof.json"), JSON.stringify(accProof));
   fs.writeFileSync(path.join(integrationTestsDir, "withdrawal_account.json"), JSON.stringify(withdrawalRecordAccount));
+
+
+  const withdrawKpAta2 = await getOrCreateAssociatedTokenAccount(
+    new Connection("http://localhost:8899", "confirmed"),
+    withdrawKp,
+    mint,
+    withdrawKp.publicKey
+  );
+  const withdrawKpBalance2 = await getAccount(
+    new Connection("http://localhost:8899", "confirmed"),
+    withdrawKpAta2.address
+  );
+  console.log("withdrawKp token balance after withdrawal:", withdrawKpBalance2.amount.toString(), mint.toString());
 
   }
 }
