@@ -10,7 +10,7 @@ snarkjs zkey export solidityverifier 1_0000.zkey verifier.sol
 snarkjs powersoftau new bn128 12 pot12_0000.ptau -v
 snarkjs powersoftau contribute pot12_0000.ptau pot12_0001.ptau --name="new" -v
 snarkjs powersoftau prepare phase2 pot12_0001.ptau pot12_final.ptau -v
-snarkjs groth16 setup ../ethDepositProof.r1cs ./pot12_final.ptau 1_0000.zkey
+snarkjs groth16 setup ../ethDepositProof.r1cs ./pot15_final.ptau 1_0000.zkey
 snarkjs zkey export verificationkey 1_0000.zkey verification_key.json
 snarkjs groth16 prove 1_0000.zkey witness.wtns proof.json public.json
 snarkjs groth16 verify verification_key.json public.json proof.json
@@ -66,3 +66,6 @@ snarkjs groth16 verify verification_key.json public.json proof.json
 
 16253*2
 32506
+
+16767*2
+33534

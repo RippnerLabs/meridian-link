@@ -291,7 +291,13 @@ evmBridgeContract.on(
         
         const fileStorage = "./ethDepositIMT.json";
         // IndexedMerkleTree, NonMembershipProof, Leaf, SerializedIMT
-        const imt = IndexedMerkleTree.loadFromFile(fileStorage);
+        let imt;
+        try {
+          imt = IndexedMerkleTree.loadFromFile(fileStorage);
+        } catch (err) {
+          console.log("err", err);
+          imt = new IndexedMerkleTree();
+        }
         const proof: NonMembershipProof = imt.createNonMembershipProof(nullifier);
         
         const toDec = (x: bigint | string) => BigInt(x).toString();
@@ -305,17 +311,19 @@ evmBridgeContract.on(
             nullifier: nullifier.toString(),
         }
 
-        const {proof: circuitProof, publicSignals} = snarkjs.groth16.fullProve(
+        console.log("circuitInputs", circuitInputs);
+
+        const {proof: circuitProof, publicSignals: circomPublicSignals} = await snarkjs.groth16.fullProve(
             circuitInputs,
             "../circom/ethDepositProof_js/ethDepositProof.wasm",
             "../circom/ethDepositProof_js/1_0000.zkey",
         )
 
-        const {proofA, proofB, proofC} = await getSolanaCompatibleProof(circuitProof);
+        const {proofA, proofB, proofC, publicSignals} = await getSolanaCompatibleProof(circuitProof, circomPublicSignals);
 
-        console.log({proofA, proofB, proofC});
+        console.log({proofA, proofB, proofC, publicSignals, nullifier});
 
-        imt.insert(nullifier);
+        await imt.insert(nullifier);
         fs.writeFileSync(fileStorage, JSON.stringify(imt.serialize()));
     
     } catch (err) {
