@@ -13,10 +13,14 @@ pub struct BridgeState {
 #[account]
 #[derive(InitSpace)]
 pub struct TokenBridge {
-    pub mint: Pubkey,
+    pub source_chain: u32,
+    #[max_len(50)]
+    pub source_chain_mint_addr: String,
     pub dest_chain: u32,
-    #[max_len(42)]
+    #[max_len(50)]
     pub dest_chain_mint_addr: String,
+    // #[max_len(64)]
+    // pub link_hash: String,
 }
 
 #[event] // to include in anchor idl
@@ -60,3 +64,13 @@ pub struct WithdrawalRecordCompressedAccount {
 }
 
 pub const SOURCE_CHAIN_ID: u32 = 1u32;
+
+#[account]
+#[derive(InitSpace)]
+pub struct WithdrawalProof {
+    pub proof_a: [u8; 64],
+    pub proof_b: [u8; 128],
+    pub proof_c: [u8; 64],
+    pub nullifier: [u8; 32],
+    pub new_root: [u8; 32],
+}

@@ -12,5 +12,8 @@ pub enum ErrorCode {
     InvalidProofData,
 
     #[msg("Groth16 Verification Failed")]
-    Groth16VerificationFailed
+    Groth16VerificationFailed,
+
+    #[msg("Invalid args")]
+    InvalidArgs
 }

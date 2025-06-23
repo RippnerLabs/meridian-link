@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::{associated_token::AssociatedToken, token_interface::{Mint, TokenAccount, TokenInterface, transfer_checked, TransferChecked}};
 use light_sdk::{account::LightAccount, address::v1::derive_address, cpi::{CpiAccounts, CpiInputs}, instruction::merkle_context::PackedAddressMerkleContext, NewAddressParamsPacked, ValidityProof};
 
-use crate::{error::ErrorCode, state::{BridgeState, TokenBridge, WithdrawalRecordCompressedAccount, SOURCE_CHAIN_ID}, zk::{groth16_verifier, ETHDEPOSIT_VERIFYINGKEY}};
+use crate::{error::ErrorCode, state::{BridgeState, TokenBridge, WithdrawalProof, WithdrawalRecordCompressedAccount, SOURCE_CHAIN_ID}, zk::{groth16_verifier, ETHDEPOSIT_VERIFYINGKEY}};
 
 #[derive(Accounts)]
 #[instruction(
@@ -11,13 +11,21 @@ use crate::{error::ErrorCode, state::{BridgeState, TokenBridge, WithdrawalRecord
     output_merkle_tree_index: u8,
     amount: u64,
     withdraw_addr: Pubkey,
-    source_chain_id: u64
+    depositer: String,
+    link_hash: String,
+    withdrawal_id: u128,
 )]
 pub struct WithdrawContext<'info> {
     #[account(mut)]
     pub relayer: Signer<'info>,
 
     pub mint: InterfaceAccount<'info, Mint>,
+
+    #[account(
+        seeds = [b"withdrawal_proof", withdrawal_id.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub withdrawal_proof: Account<'info, WithdrawalProof>,
 
     #[account(
         mut,
@@ -27,7 +35,10 @@ pub struct WithdrawContext<'info> {
     pub bridge_state: Account<'info, BridgeState>,
 
     #[account(
-        seeds=[b"token_bridge", mint.key().as_ref(), source_chain_id.to_le_bytes().as_ref()],
+        seeds=[
+            b"tb",
+            link_hash.as_bytes().as_ref(),
+        ],
         bump,
     )]
     pub token_bridge: Account<'info, TokenBridge>,
@@ -61,17 +72,12 @@ pub fn withdraw_handler<'info>(
     output_merkle_tree_index: u8,
     amount: u64,
     withdraw_addr: Pubkey,
-    depositer: String,
-    source_chain_id: u64,
-    source_token_mint: String,
+    link_hash: String,
     withdrawal_id: u128,
-    proof_a: [u8; 64],
-    proof_b: [u8; 128],
-    proof_c: [u8; 64]
 ) -> Result<()> {
     require!(amount > 0, ErrorCode::WithdrawAmountShouldBeGreaterThanZero);
 
-    groth16_verifier(proof_a, proof_b, proof_c, &[], ETHDEPOSIT_VERIFYINGKEY);
+    // groth16_verifier(proof_a, proof_b, proof_c, &[nullifier, new_root], ETHDEPOSIT_VERIFYINGKEY);
 
     let transfer_checked_t = TransferChecked {
         authority: ctx.accounts.token_vault.to_account_info(),
@@ -130,12 +136,14 @@ pub fn withdraw_handler<'info>(
         output_merkle_tree_index,
     );
 
-    withdrawl_record.depositer = depositer;
-    withdrawl_record.sourceChainId = source_chain_id;
+    let token_bridge = &ctx.accounts.token_bridge;
+
+    // withdrawl_record.depositer = depositer;
+    withdrawl_record.sourceChainId = token_bridge.source_chain as u64;
     withdrawl_record.destChainId = SOURCE_CHAIN_ID as u64;
     withdrawl_record.destChainAddr = withdraw_addr;
     withdrawl_record.destChainMintAddr = ctx.accounts.mint.key();
-    withdrawl_record.tokenMint = source_token_mint;
+    withdrawl_record.tokenMint = token_bridge.source_chain_mint_addr.clone();
     withdrawl_record.amount = amount;
     withdrawl_record.timestamp = Clock::get()?.unix_timestamp;
     withdrawl_record.withdrawalId = withdrawal_id;

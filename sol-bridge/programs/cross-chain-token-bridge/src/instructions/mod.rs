@@ -6,3 +6,5 @@ pub mod init_token_bridge;
 pub use init_token_bridge::*;
 pub mod withdraw;
 pub use withdraw::*;
+pub mod init_withdrawal_proof_account;
+pub use init_withdrawal_proof_account::*;

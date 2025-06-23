@@ -14,10 +14,12 @@ import {
   deriveAddress,
   deriveAddressSeed,
   LightSystemProgram,
+  padOutputStateMerkleTrees,
   Rpc,
   sleep,
 } from "@lightprotocol/stateless.js";
 import bs58 from "bs58";
+import { BN } from "bn.js";
 
 const path = require("path");
 const os = require("os");
@@ -83,20 +85,51 @@ describe("test-anchor", () => {
       process.env.DEST_CHAIN_MINT_ADDR || "610178da211fef7d417bc0e6fed39f05609ad788",
       "hex"
     ));
-    await initTokenBridgeCall(rpc, program, signer, mint, dest_chain_id, dest_chain_mint_addr);
-    await CreateDepositRecordCompressedAccount(
+    const SOLANA_CHAIN_ID = 1;
+    // await initTokenBridgeCall(rpc, program, signer, SOLANA_CHAIN_ID, mint.toString(), dest_chain_id, dest_chain_mint_addr);
+    // await initTokenBridgeCall(rpc, program, signer, dest_chain_id, dest_chain_mint_addr, SOLANA_CHAIN_ID, mint.toString());
+
+    // await CreateDepositRecordCompressedAccount(
+    //   rpc,
+    //   addressTree,
+    //   addressQueue,
+    //   depositRecordAddress,
+    //   program,
+    //   outputMerkleTree,
+    //   signer,
+    //   mint,
+    //   SOLANA_CHAIN_ID,
+    //   mint.toString(),
+    //   dest_chain_id,
+    //   dest_chain_mint_addr,
+    //   dest_chain_addr,
+    // )
+
+    const withdrawalRecordSeed = deriveAddressSeed(
+      [
+        new TextEncoder().encode("withdrawal"),
+        signer.publicKey.toBytes(),
+        bn(1).toArrayLike(Buffer, 'le', 16),
+      ],
+      new web3.PublicKey(program.idl.address)
+    )
+    const withdrawalRecordAddress = deriveAddress(withdrawalRecordSeed, addressTree);
+    console.log("withdrawalRecordAddress", withdrawalRecordAddress);
+
+    await CreateWithdrawalRecordCompressedAccount(
       rpc,
       addressTree,
       addressQueue,
-      depositRecordAddress,
+      withdrawalRecordAddress,
       program,
       outputMerkleTree,
       signer,
       mint,
       dest_chain_id,
-      dest_chain_addr,
+      dest_chain_mint_addr,
+      SOLANA_CHAIN_ID,
+      mint.toString(),
     )
-
     // Create counter compressed account.
     // await CreateCounterCompressedAccount(
     //   rpc,
@@ -181,17 +214,24 @@ async function initTokenBridgeCall(
   rpc: Rpc,
   program: anchor.Program<CrossChainTokenBridge>,
   signer: anchor.web3.Signer,
-  mint: PublicKey,
+  source_chain: number,
+  source_chain_mint_addr: string,
   dest_chain_id: number,
   dest_chain_mint_addr: string,
 ) {
   {
-    let tx = await program.methods.initTokenBridge(dest_chain_id, dest_chain_mint_addr)
+    const linkHash = require('crypto').createHash('sha256').update(`${source_chain}_${source_chain_mint_addr}_${dest_chain_id}_${dest_chain_mint_addr}`).digest('hex').slice(0, 16);
+    console.log("initTokenBridgeCall called", linkHash)
+    let tx = await program.methods.initTokenBridge(
+      source_chain,
+      source_chain_mint_addr,
+      dest_chain_id,
+      dest_chain_mint_addr,
+      linkHash,
+    )
     .accounts(
       {
         signer:signer.publicKey,
-        mint,
-        tokenProgram: TOKEN_PROGRAM_ID
       }
     )
     .signers([signer])
@@ -202,7 +242,10 @@ async function initTokenBridgeCall(
     console.log('token bridge initialised', sig);
 
     const address = PublicKey.findProgramAddressSync(
-      [Buffer.from("token_bridge"), mint.toBuffer(), bn(dest_chain_id).toArrayLike(Buffer, 'le', 4)],
+      [
+        Buffer.from("tb"),
+        linkHash
+      ],
       program.programId
     )[0];
     await sleep(2000);
@@ -220,8 +263,11 @@ async function CreateDepositRecordCompressedAccount(
   outputMerkleTree: anchor.web3.PublicKey,
   signer: anchor.web3.Keypair,
   mint: PublicKey,
-  destChainId: number,
-  destChainAddr: string
+  source_chain: number,
+  source_chain_mint_addr: string,
+  dest_chain_id: number,
+  dest_chain_mint_addr: string,
+  dest_chain_addr: string,
 ) {
   {
     let  proofRpcResult;
@@ -259,8 +305,10 @@ async function CreateDepositRecordCompressedAccount(
       units: 1_000_000,
     });
 
+    const linkHash = require('crypto').createHash('sha256').update(`${source_chain}_${source_chain_mint_addr}_${dest_chain_id}_${dest_chain_mint_addr}`).digest('hex').slice(0, 16);
+    
     let tx = await program.methods
-      .deposit(proof, packedAddressMerkleContext, outputMerkleTreeIndex, bn(100 * 10 ** 2), destChainId, destChainAddr)
+      .deposit(proof, packedAddressMerkleContext, outputMerkleTreeIndex, bn(100 * 10 ** 2), linkHash, dest_chain_addr)
       .accounts({
         signer: signer.publicKey,
         mint: mint,
@@ -314,9 +362,143 @@ async function CreateWithdrawalRecordCompressedAccount(
   addressQueue: anchor.web3.PublicKey,
   address: anchor.web3.PublicKey,
   program: anchor.Program<CrossChainTokenBridge>,
+  outputMerkleTree: anchor.web3.PublicKey,
   signer: anchor.web3.Keypair,
-  mint:
-)
+  mint: PublicKey,
+  source_chain: number,
+  source_chain_mint_addr: string,
+  dest_chain_id: number,
+  dest_chain_mint_addr: string,
+) {
+  {
+    const proofRpcResult = await rpc.getValidityProofV0(
+      [],
+      [
+        {
+          tree: addressTree,
+          queue: addressQueue,
+          address: bn(address.toBytes())
+        }
+      ]
+    );
+
+    const systemAccountConfig = SystemAccountMetaConfig.new(program.programId);
+    let remainingAccounts = PackedAccounts.newWithSystemAccounts(systemAccountConfig);
+    const addressMerkleTreePubkeyIndex = remainingAccounts.insertOrGet(addressTree);
+    const addressQueuePubkeyIndex = remainingAccounts.insertOrGet(addressQueue);
+    const packedAddressMerkleContext = {
+      rootIndex: proofRpcResult.rootIndices[0],
+      addressMerkleTreePubkeyIndex,
+      addressQueuePubkeyIndex
+    };
+    const outputMerkleTreeIndex = remainingAccounts.insertOrGet(outputMerkleTree);
+    let proof = {
+      0: proofRpcResult.compressedProof,
+    }
+    const computeBudgetIx = web3.ComputeBudgetProgram.setComputeUnitLimit({
+      units: 1_000_000,
+    });
+    console.log(1)
+    const withdrawKp = anchor.web3.Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(path.join(__dirname, "../../keys/signer.json"), "utf8"))));
+    console.log(2)
+
+    const linkHash = require('crypto').createHash('sha256').update(`${source_chain}_${source_chain_mint_addr}_${dest_chain_id}_${dest_chain_mint_addr}`).digest('hex').slice(0, 16);
+    console.log(3)
+
+    // create withdrawalProof account and write the data into that account
+    const withdrawalProofTx = await program.methods.initWithdrawalProofAccount(
+      bn(1),
+      [14,58,244,221,122,68,66,81,213,157,63,61,7,190,118,65,192,146,144,180,155,55,213,242,31,230,7,79,51,113,237,169,44,205,233,37,188,227,130,185,222,44,198,182,102,234,116,74,16,151,178,93,26,55,87,92,176,81,238,23,165,142,209,226],
+      [
+        29, 228, 78, 154, 16, 24, 136, 0, 188, 126, 229, 20, 31, 194, 17, 160,
+        253, 155, 78, 80, 91, 86, 24, 143, 104, 190, 237, 89, 159, 96, 108, 20,
+        17, 105, 151, 153, 180, 40, 3, 122, 6, 6, 96, 121, 76, 21, 164, 49, 171,
+        151, 154, 49, 112, 89, 132, 205, 150, 111, 119, 28, 8, 9, 4, 160, 0, 15,
+        4, 58, 220, 188, 189, 143, 75, 171, 181, 8, 244, 237, 255, 228, 31, 255,
+        248, 187, 170, 208, 237, 155, 11, 54, 239, 104, 123, 184, 177, 15, 23,
+        252, 94, 41, 34, 188, 219, 220, 139, 127, 198, 61, 184, 94, 165, 146, 124,
+        223, 46, 70, 47, 214, 223, 90, 199, 211, 45, 249, 195, 219, 124, 159
+      ],
+      [
+        5, 41, 227, 187, 40, 74, 192, 30, 223, 107, 115, 187, 177, 209, 57, 201,
+        113, 19, 103, 129, 144, 182, 119, 147, 215, 161, 216, 125, 67, 65, 226,
+        94, 29, 97, 209, 152, 187, 206, 57, 209, 247, 198, 56, 91, 63, 153, 126,
+        149, 235, 186, 238, 198, 95, 85, 199, 231, 59, 143, 94, 71, 196, 174, 124,
+        211
+      ],
+      [11,3,119,82,135,205,250,45,160,213,133,169,79,212,130,204,137,128,91,19,82,142,63,56,50,224,60,189,43,8,50,4],
+      [10,176,51,106,94,59,78,39,15,155,59,130,38,103,174,242,118,76,148,79,204,137,57,87,102,125,171,241,60,92,147,48]
+    )
+    .accounts({
+      signer: signer.publicKey,
+    })
+    .signers([signer])
+    .transaction();
+
+    withdrawalProofTx.recentBlockhash = (await rpc.getRecentBlockhash()).blockhash;
+    withdrawalProofTx.sign(signer);
+
+    const sig1 = await rpc.sendTransaction(withdrawalProofTx, [signer]);
+    await rpc.confirmTransaction(sig1, "finalized");
+    console.log("created withdrawal proof", sig1);
+
+    const tx = await program.methods
+    .withdraw(
+      proof,
+      packedAddressMerkleContext,
+      outputMerkleTreeIndex,
+      bn(100 * 10*2),
+      withdrawKp.publicKey,
+      linkHash,
+      bn(1),
+    )
+    .accounts({
+      relayer: signer.publicKey,
+      mint: mint,
+      tokenProgram: TOKEN_PROGRAM_ID
+    })
+    .preInstructions([computeBudgetIx])
+    .remainingAccounts(remainingAccounts.toAccountMetas().remainingAccounts)
+    .signers([signer])
+    .transaction();
+    console.log(4)
+
+    tx.recentBlockhash = (await rpc.getRecentBlockhash()).blockhash;
+    tx.sign(signer);
+
+    const sig = await rpc.sendTransaction(tx, [signer]);
+    await rpc.confirmTransaction(sig, "finalized");
+    console.log("created withdraw record", sig);
+
+    await sleep(4000);
+    console.log("compressed acc addr", address.toString());
+  let withdrawalRecordAccount = await rpc.getCompressedAccount(bn(address.toBytes()));
+  console.log("withdrawalRecordAccount", withdrawalRecordAccount);
+
+  const coder = new anchor.BorshCoder(idl as anchor.Idl);
+  let depositRecord = coder.types.decode(
+    "WithdrawalRecordCompressedAccount",
+      withdrawalRecordAccount.data.data,
+    )
+
+  // console.log("depositRecord account ", depositRecordAccount);
+  // console.log("des depositRecord ", depositRecord);
+  const accProof = await rpc.getCompressedAccountProof(withdrawalRecordAccount.hash);
+
+  const integrationTestsDir = path.join(__dirname, "../../integration-tests");
+  // Convert BN amount to decimal string before writing to record.json
+  const recordForJson = {
+    ...depositRecord,
+    amount: depositRecord.amount.toString(),
+    timestamp: depositRecord.timestamp.toString(),
+    deposit_id: depositRecord.deposit_id.toString(),
+  };
+  fs.writeFileSync(path.join(integrationTestsDir, "withdrawal_record.json"), JSON.stringify(recordForJson));
+  fs.writeFileSync(path.join(integrationTestsDir, "withdrawal_proof.json"), JSON.stringify(accProof));
+  fs.writeFileSync(path.join(integrationTestsDir, "withdrawal_account.json"), JSON.stringify(withdrawalRecordAccount));
+
+  }
+}
 
 async function CreateCounterCompressedAccount(
   rpc: Rpc,

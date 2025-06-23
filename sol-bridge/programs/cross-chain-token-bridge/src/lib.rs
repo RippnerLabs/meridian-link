@@ -25,8 +25,19 @@ pub mod cross_chain_token_bridge {
         return init_handler(ctx);
     }
 
-    pub fn init_token_bridge(ctx: Context<InitTokenBridgeContext>, dest_chain: u32, dest_chain_mint_addr: String) -> Result<()> {
-        return init_token_bridge_handler(ctx, dest_chain, dest_chain_mint_addr);
+    pub fn init_withdrawal_proof_account(ctx: Context<InitWithdrawalProofAccountContext>, withdrawal_id: u128, proof_a: [u8; 64], proof_b: [u8; 128], proof_c: [u8; 64], nullifier: [u8; 32], new_root: [u8; 32]) -> Result<()> {
+        return init_withdrawal_proof_account_handler(ctx, withdrawal_id, proof_a, proof_b, proof_c, nullifier, new_root);
+    }
+
+    pub fn init_token_bridge(
+        ctx: Context<InitTokenBridgeContext>,
+        source_chain: u32,
+        source_chain_mint_addr: String,
+        dest_chain: u32,
+        dest_chain_mint_addr: String,
+        link_hash: String,
+    ) -> Result<()> {
+        return init_token_bridge_handler(ctx, source_chain, source_chain_mint_addr, dest_chain, dest_chain_mint_addr, link_hash);
     }
     
     pub fn deposit<'info> (
@@ -35,10 +46,10 @@ pub mod cross_chain_token_bridge {
         address_merkle_context: PackedAddressMerkleContext,
         output_merkle_tree_index: u8,
         amount: u64,
-        dest_chain_id: u32,
+        link_hash: String,
         dest_chain_addr: String,
     ) -> Result<()> {
-        return deposit_handler(ctx,  proof, address_merkle_context, output_merkle_tree_index, amount, dest_chain_id, dest_chain_addr)
+        return deposit_handler(ctx, proof, address_merkle_context, output_merkle_tree_index, amount, link_hash, dest_chain_addr);
     }
 
     pub fn withdraw<'info>(
@@ -48,15 +59,11 @@ pub mod cross_chain_token_bridge {
         output_merkle_tree_index: u8,
         amount: u64,
         withdraw_addr: Pubkey,
-        depositer: String,
-        source_chain_id: u64,
-        source_token_mint: String,
-        withdrawal_id: u128,
-        proof_a: [u8;64],
-        proof_b: [u8; 128],
-        proof_c: [u8; 64]
+        // depositer: String,
+        link_hash: String,
+        withdrawal_id: u128
     ) -> Result<()> {
-        return withdraw_handler(ctx, proof, address_merkle_context, output_merkle_tree_index, amount, withdraw_addr, depositer, source_chain_id, source_token_mint, withdrawal_id, proof_a, proof_b, proof_c)
+        return withdraw_handler(ctx, proof, address_merkle_context, output_merkle_tree_index, amount, withdraw_addr, link_hash, withdrawal_id);
     }
 
     pub fn create<'info>(

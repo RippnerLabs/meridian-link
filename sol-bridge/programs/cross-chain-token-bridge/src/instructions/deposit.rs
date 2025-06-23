@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use anchor_lang::prelude::*;
 use anchor_spl::{associated_token::AssociatedToken, token_interface::{transfer_checked, Mint, TokenAccount, TransferChecked, TokenInterface}};
 use light_sdk::{account::LightAccount, address::v1::derive_address, cpi::{CpiAccounts, CpiInputs}, instruction::merkle_context::PackedAddressMerkleContext, light_compressed_account::pubkey::PubkeyTrait, NewAddressParams, NewAddressParamsPacked, ValidityProof};
@@ -10,26 +11,29 @@ use crate::{error::ErrorCode, state::{BridgeState, DepositRecordCompressedAccoun
     address_merkle_context: PackedAddressMerkleContext,
     output_merkle_tree_index: u8,
     amount: u64,
-    dest_chain_id: u32,
-    dest_chain_addr: String
+    link_hash: String,
+    dest_chain_addr: String,
 )]
 pub struct DepositContext<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
-    pub mint: InterfaceAccount<'info, Mint>,
+    pub mint: Box<InterfaceAccount<'info, Mint>>,
 
     #[account(
         mut,
         seeds = [b"bridge_state"],
         bump
     )]
-    pub bridge_state: Account<'info, BridgeState>,
+    pub bridge_state: Box<Account<'info, BridgeState>>,
 
     #[account(
-        seeds=[b"token_bridge", mint.key().as_ref(), dest_chain_id.to_le_bytes().as_ref()],
+        seeds=[
+            b"tb",
+            link_hash.as_bytes().as_ref(),
+        ],
         bump,
     )]
-    pub token_bridge: Account<'info, TokenBridge>,
+    pub token_bridge: Box<Account<'info, TokenBridge>>,
     
     #[account(
         init_if_needed,
@@ -39,7 +43,7 @@ pub struct DepositContext<'info> {
         seeds = [b"vault", mint.key().as_ref()],
         bump,
     )]
-    pub token_vault: InterfaceAccount<'info, TokenAccount>,
+    pub token_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
     #[account(
         mut,
@@ -47,7 +51,7 @@ pub struct DepositContext<'info> {
         associated_token::authority = signer,
         // associated_token::token_program = token_program,
     )]
-    pub user_ata: InterfaceAccount<'info, TokenAccount>,
+    pub user_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
     pub token_program: Interface<'info, TokenInterface>,
     pub associated_token_program: Program<'info, AssociatedToken>,
@@ -60,12 +64,11 @@ pub fn deposit_handler<'info> (
     address_merkle_context: PackedAddressMerkleContext,
     output_merkle_tree_index: u8,
     amount: u64,
-    dest_chain_id: u32,
+    link_hash: String,
     dest_chain_addr: String,
 ) -> Result<()> {
 
     require!(amount >0, ErrorCode::DepositAmountShouldBeGreaterThanZero);
-    
     let tranfer_checked_t = TransferChecked {
         authority: ctx.accounts.signer.to_account_info(),
         from: ctx.accounts.user_ata.to_account_info(),
@@ -114,15 +117,17 @@ pub fn deposit_handler<'info> (
         Some(address),
         output_merkle_tree_index,
     );
+
+    let token_bridge = &ctx.accounts.token_bridge;
     
     deposit_record.owner = ctx.accounts.signer.key();
     deposit_record.mint = ctx.accounts.mint.key();
     msg!("amount {:?}", amount);
     deposit_record.amount = amount;
-    deposit_record.source_chain_id = SOURCE_CHAIN_ID;
-    deposit_record.dest_chain_id = dest_chain_id;
+    deposit_record.source_chain_id = token_bridge.source_chain;
+    deposit_record.dest_chain_id = token_bridge.dest_chain;
     deposit_record.dest_chain_addr = dest_chain_addr;
-    deposit_record.dest_chain_mint_addr = ctx.accounts.token_bridge.dest_chain_mint_addr.clone();
+    deposit_record.dest_chain_mint_addr = token_bridge.dest_chain_mint_addr.clone();
     deposit_record.timestamp = Clock::get()?.unix_timestamp;
     deposit_record.deposit_id = current_deposit_num;
     
