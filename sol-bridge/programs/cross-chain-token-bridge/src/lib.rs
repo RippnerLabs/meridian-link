@@ -65,11 +65,10 @@ pub mod cross_chain_token_bridge {
         address_merkle_context: PackedAddressMerkleContext,
         output_merkle_tree_index: u8,
         amount: u64,
-        withdraw_addr: Pubkey,
         link_hash: String,
         nullifier: [u8; 32],
     ) -> Result<()> {
-        return withdraw_handler(ctx, proof, address_merkle_context, output_merkle_tree_index, amount, withdraw_addr, link_hash, nullifier);
+        return withdraw_handler(ctx, proof, address_merkle_context, output_merkle_tree_index, amount, link_hash, nullifier);
     }
 
     pub fn create<'info>(

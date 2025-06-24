@@ -113,7 +113,7 @@ describe("test-anchor", () => {
       [
         new TextEncoder().encode("withdrawal"),
         withdrawKp.publicKey.toBytes(),
-        bn(2).toArrayLike(Buffer, 'le', 16),
+        Buffer.from(withdrawalNullifier),
       ],
       new web3.PublicKey(program.idl.address)
     )
@@ -489,25 +489,25 @@ async function CreateWithdrawalRecordCompressedAccount(
       packedAddressMerkleContext,
       outputMerkleTreeIndex,
       bn(50 * 10*2),
-      withdrawKp.publicKey,
       linkHash,
       Buffer.from(withdrawalNullifier),
     )
     .accounts({
-      signer: withdrawKp.publicKey,
+      relayer: signer.publicKey,
+      recipient: withdrawKp.publicKey,
       mint: mint,
       tokenProgram: TOKEN_PROGRAM_ID
     })
     .preInstructions([computeBudgetIx])
     .remainingAccounts(remainingAccounts.toAccountMetas().remainingAccounts)
-    .signers([withdrawKp])
+    .signers([signer])
     .transaction();
     console.log(4)
 
     tx.recentBlockhash = (await rpc.getRecentBlockhash()).blockhash;
-    tx.sign(withdrawKp);
+    tx.sign(signer);
 
-    const sig = await rpc.sendTransaction(tx, [withdrawKp], {skipPreflight: true});
+    const sig = await rpc.sendTransaction(tx, [signer]);
     await rpc.confirmTransaction(sig, "finalized");
     console.log("created withdraw record", sig);
 
