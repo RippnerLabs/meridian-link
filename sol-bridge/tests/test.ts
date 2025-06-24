@@ -28,6 +28,8 @@ require("dotenv").config();
 const anchorWalletPath = path.join(os.homedir(), ".config/solana/id.json");
 process.env.ANCHOR_WALLET = anchorWalletPath;
 
+const withdrawalNullifier = [11,3,119,82,135,205,250,45,160,213,133,169,79,212,130,204,137,128,91,19,82,142,63,56,50,224,60,189,43,8,50,4];
+
 describe("test-anchor", () => {
   const program = anchor.workspace.CrossChainTokenBridge as Program<CrossChainTokenBridge>;
 
@@ -72,7 +74,7 @@ describe("test-anchor", () => {
       [
         new TextEncoder().encode("deposit"),
         signer.publicKey.toBytes(),
-        bn(1).toArrayLike(Buffer, 'le', 16)
+        Buffer.from(withdrawalNullifier)
       ],
       new web3.PublicKey(program.idl.address)
     );
@@ -396,7 +398,7 @@ async function CreateWithdrawalRecordCompressedAccount(
   dest_chain_id: number,
   dest_chain_mint_addr: string,
 ) {
-  {
+  {    
     // create withdrawalProof account and write the data into that account
     const withdrawalProofTx = await program.methods.initWithdrawalProofAccount(
       bn(2),
@@ -418,7 +420,7 @@ async function CreateWithdrawalRecordCompressedAccount(
         149, 235, 186, 238, 198, 95, 85, 199, 231, 59, 143, 94, 71, 196, 174, 124,
         211
       ],
-      [11,3,119,82,135,205,250,45,160,213,133,169,79,212,130,204,137,128,91,19,82,142,63,56,50,224,60,189,43,8,50,4],
+      withdrawalNullifier,
       [10,176,51,106,94,59,78,39,15,155,59,130,38,103,174,242,118,76,148,79,204,137,57,87,102,125,171,241,60,92,147,48]
     )
     .accounts({
@@ -489,7 +491,7 @@ async function CreateWithdrawalRecordCompressedAccount(
       bn(50 * 10*2),
       withdrawKp.publicKey,
       linkHash,
-      bn(2),
+      Buffer.from(withdrawalNullifier),
     )
     .accounts({
       signer: withdrawKp.publicKey,

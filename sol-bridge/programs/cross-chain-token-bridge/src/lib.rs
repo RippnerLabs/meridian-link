@@ -67,9 +67,9 @@ pub mod cross_chain_token_bridge {
         amount: u64,
         withdraw_addr: Pubkey,
         link_hash: String,
-        withdrawal_id: u128
+        nullifier: [u8; 32],
     ) -> Result<()> {
-        return withdraw_handler(ctx, proof, address_merkle_context, output_merkle_tree_index, amount, withdraw_addr, link_hash, withdrawal_id);
+        return withdraw_handler(ctx, proof, address_merkle_context, output_merkle_tree_index, amount, withdraw_addr, link_hash, nullifier);
     }
 
     pub fn create<'info>(

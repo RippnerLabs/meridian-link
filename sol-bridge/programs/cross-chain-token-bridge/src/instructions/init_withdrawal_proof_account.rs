@@ -8,8 +8,8 @@ use crate::state::{TokenBridge, WithdrawalProof};
     proof_a: [u8; 64],
     proof_b: [u8; 128],
     proof_c: [u8; 64],
-    nullifier: [u8; 16],
-    new_root: [u8; 16],
+    nullifier: [u8; 32],
+    new_root: [u8; 32],
 )]
 pub struct InitWithdrawalProofAccountContext<'info> {
     #[account(mut)]
@@ -21,7 +21,7 @@ pub struct InitWithdrawalProofAccountContext<'info> {
         space=8+WithdrawalProof::INIT_SPACE,
         seeds=[
             b"withdrawal_proof",
-            withdrawal_id.to_le_bytes().as_ref(),
+            nullifier.as_ref(),
         ],
         bump,
     )]

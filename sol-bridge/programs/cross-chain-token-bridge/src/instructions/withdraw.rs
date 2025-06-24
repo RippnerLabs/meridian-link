@@ -12,7 +12,7 @@ use crate::{error::ErrorCode, state::{BridgeState, TokenBridge, WithdrawalProof,
     amount: u64,
     withdraw_addr: Pubkey,
     link_hash: String,
-    withdrawal_id: u128,
+    nullifier: [u8; 32],
 )]
 pub struct WithdrawContext<'info> {
     #[account(mut)]
@@ -21,7 +21,7 @@ pub struct WithdrawContext<'info> {
     pub mint: InterfaceAccount<'info, Mint>,
 
     #[account(
-        seeds = [b"withdrawal_proof", withdrawal_id.to_le_bytes().as_ref()],
+        seeds = [b"withdrawal_proof", nullifier.as_ref()],
         bump
     )]
     pub withdrawal_proof: Account<'info, WithdrawalProof>,
@@ -72,10 +72,11 @@ pub fn withdraw_handler<'info>(
     amount: u64,
     withdraw_addr: Pubkey,
     link_hash: String,
-    withdrawal_id: u128,
+    nullifier: [u8; 32],
 ) -> Result<()> {
     require!(amount > 0, ErrorCode::WithdrawAmountShouldBeGreaterThanZero);
-    // groth16_verifier(proof_a, proof_b, proof_c, &[nullifier, new_root], ETHDEPOSIT_VERIFYINGKEY);
+    let withdrawal_proof = &ctx.accounts.withdrawal_proof;
+    groth16_verifier(withdrawal_proof.proof_a, withdrawal_proof.proof_b, withdrawal_proof.proof_c, &[withdrawal_proof.nullifier, withdrawal_proof.new_root], ETHDEPOSIT_VERIFYINGKEY);
 
     let transfer_checked_t = TransferChecked {
         authority: ctx.accounts.token_vault.to_account_info(),
@@ -117,7 +118,7 @@ pub fn withdraw_handler<'info>(
     ctx.accounts.bridge_state.withdraw_count = current_withdrawl_num.clone();
 
     let (address, address_seed) = derive_address(
-        &[b"withdrawal", ctx.accounts.signer.key().as_ref(), withdrawal_id.to_le_bytes().as_ref()],
+        &[b"withdrawal", ctx.accounts.signer.key().as_ref(), nullifier.as_ref()],
         &light_cpi_accounts.tree_accounts()[address_merkle_context.address_merkle_tree_pubkey_index as usize].key(),
         &crate::ID);
 
@@ -144,7 +145,9 @@ pub fn withdraw_handler<'info>(
     withdrawl_record.tokenMint = token_bridge.source_chain_mint_addr.clone();
     withdrawl_record.amount = amount;
     withdrawl_record.timestamp = Clock::get()?.unix_timestamp;
-    withdrawl_record.withdrawalId = withdrawal_id;
+    withdrawl_record.withdrawalId = ctx.accounts.bridge_state.withdraw_count;
+
+    ctx.accounts.bridge_state.withdraw_count = current_withdrawl_num.checked_add(1).unwrap();
 
     msg!("withdrawl_record: {:?}", withdrawl_record);
 
