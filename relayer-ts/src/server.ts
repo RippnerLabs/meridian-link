@@ -31,6 +31,7 @@ import addressBook from "../../config/localhost_address_book.json";
 dotenv.config({ path: ".env.local" });
 // @ts-ignore
 import snarkjs from "snarkjs";
+import { solanaWithdraw } from "./sol-bridge";
 
 const app = express();
 const PORT = process.env.PORT || 3006;
@@ -251,7 +252,8 @@ evmBridgeContract.on(
     tokenMint,
     amount,
     timestamp,
-    depositId
+    depositId,
+    ...args
   ) => {
     try {
         let depositEvent = {
@@ -263,7 +265,7 @@ evmBridgeContract.on(
             tokenMint,
             amount,
             timestamp,
-            depositId,  
+            depositId,
         }
         console.log("depositEvent", depositEvent);
         const depositEventArr = [
@@ -319,13 +321,15 @@ evmBridgeContract.on(
             "../circom/ethDepositProof_js/1_0000.zkey",
         )
 
-        const {proofA, proofB, proofC, publicSignals} = await getSolanaCompatibleProof(circuitProof, circomPublicSignals);
+        const proofProc = await getSolanaCompatibleProof(circuitProof, circomPublicSignals);
 
-        console.log({proofA, proofB, proofC, publicSignals, nullifier});
+        // console.log({proofA, proofB, proofC, publicSignals, nullifier});
+        const withdrawalRecord = await solanaWithdraw(proofProc, depositEvent);
 
         await imt.insert(nullifier);
         fs.writeFileSync(fileStorage, JSON.stringify(imt.serialize()));
-    
+
+        return withdrawalRecord;
     } catch (err) {
         console.error("err", err);
     }
