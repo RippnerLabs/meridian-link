@@ -1,0 +1,41 @@
+import type { Metadata } from 'next'
+import './globals.css'
+import { AppProviders } from '@/components/app-providers'
+import { AppLayout } from '@/components/app-layout'
+import { UnicornStudio } from '@/components/unicorn-studio'
+
+export const metadata: Metadata = {
+  title: 'Stargate Bridge',
+  description: 'Cross-chain token bridge with zero-knowledge proofs',
+}
+
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const links = [
+    { label: 'Account', path: '/account' },
+    { label: 'Bridge', path: '/bridge' },
+    { label: 'Counter', path: '/counter' },
+    { label: 'Dashboard', path: '/dashboard' },
+  ]
+
+  return (
+    <html lang="en">
+      <body className="antialiased font-sans">
+        <UnicornStudio projectId="9hjPDHjq4VaefHpQxMmG" asBackground />
+        <AppProviders>
+          <AppLayout links={links}>{children}</AppLayout>
+        </AppProviders>
+      </body>
+    </html>
+  )
+}
+
+// Extend BigInt to support JSON serialization
+declare global {
+  interface BigInt {
+    toJSON(): string
+  }
+}
+
+BigInt.prototype.toJSON = function () {
+  return this.toString()
+}
