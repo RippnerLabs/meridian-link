@@ -3,8 +3,10 @@
 import { useWallet } from "@solana/wallet-adapter-react";
 import { SidebarUI } from "../sidebar/sidebar-ui";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
-import { Zap, ArrowUpDown, Settings, ChevronDown, Info, Copy, ExternalLink } from "lucide-react";
+import { Zap, ArrowUpDown, Settings, ChevronDown, Info, Copy, ExternalLink, RefreshCw } from "lucide-react";
 import { WalletButton } from "../solana/solana-provider";
+import { EthereumWalletButton } from "../ethereum/ethereum-wallet-button";
+import { useBridgeDataAccess } from "./bridge-data-access";
 import { useState, useEffect } from "react";
 import {
   Select,
@@ -37,18 +39,43 @@ import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { toast } from "sonner";
 import { CheckCircle2, AlertTriangle } from "lucide-react";
 
-// Helper constants
+// Import Web3 Icons
+import { 
+  NetworkEthereum, 
+  NetworkSolana, 
+  NetworkPolygon, 
+  NetworkArbitrumOne,
+  TokenUSDC,
+  TokenETH,
+  TokenSOL
+} from "@web3icons/react";
+
+// Helper constants with proper Web3 icons
 const CHAINS = [
-  { value: "ethereum", label: "Ethereum", icon: "🔷", color: "bg-blue-500" },
-  { value: "solana", label: "Solana", icon: "🟣", color: "bg-purple-500" },
-  { value: "polygon", label: "Polygon", icon: "🟪", color: "bg-purple-600" },
-  { value: "arbitrum", label: "Arbitrum", icon: "🔵", color: "bg-blue-600" },
+  { 
+    value: "ethereum", 
+    label: "Ethereum (Sepolia)", 
+    icon: NetworkEthereum, 
+    color: "bg-blue-500",
+    iconColor: "#627EEA" 
+  },
+  { 
+    value: "solana", 
+    label: "Solana (Localnet)", 
+    icon: NetworkSolana, 
+    color: "bg-purple-500",
+    iconColor: "#9945FF" 
+  },
 ];
 
 const TOKENS = [
-  { value: "USDC", label: "USDC", balance: "1,234.56", icon: "💵" },
-  { value: "ETH", label: "ETH", balance: "0.5432", icon: "⚡" },
-  { value: "SOL", label: "SOL", balance: "100.25", icon: "☀️" },
+  { 
+    value: "BridgeToken", 
+    label: "BridgeToken", 
+    balance: "0", 
+    icon: TokenUSDC,
+    iconColor: "#2775CA"
+  },
 ];
 
 const STEP_LABELS = [
@@ -63,12 +90,14 @@ function TokenSelector({
   value, 
   onValueChange, 
   label, 
-  showBalance = false 
+  showBalance = false,
+  balance = '0'
 }: { 
   value: string; 
   onValueChange: (value: string) => void; 
   label: string; 
   showBalance?: boolean;
+  balance?: string;
 }) {
   const selectedToken = TOKENS.find(t => t.value === value);
   
@@ -80,27 +109,33 @@ function TokenSelector({
           <SelectValue placeholder="Select token" />
         </SelectTrigger>
         <SelectContent className="bg-gray-800 border-gray-700">
-          {TOKENS.map((token) => (
-            <SelectItem key={token.value} value={token.value} className="text-white hover:bg-gray-700 focus:bg-gray-700">
-              <div className="flex items-center justify-between w-full">
-                <div className="flex items-center space-x-2">
-                  <span>{token.icon}</span>
-                  <span>{token.label}</span>
+          {TOKENS.map((token) => {
+            const IconComponent = token.icon;
+            return (
+              <SelectItem key={token.value} value={token.value} className="text-white hover:bg-gray-700 focus:bg-gray-700">
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center space-x-3">
+                    <IconComponent 
+                      className="w-5 h-5" 
+                      style={{ color: token.iconColor }}
+                    />
+                    <span>{token.label}</span>
+                  </div>
+                  {showBalance && (
+                    <span className="text-gray-400 text-xs ml-2">
+                      {token.balance}
+                    </span>
+                  )}
                 </div>
-                {showBalance && (
-                  <span className="text-gray-400 text-xs ml-2">
-                    {token.balance}
-                  </span>
-                )}
-              </div>
-            </SelectItem>
-          ))}
+              </SelectItem>
+            );
+          })}
         </SelectContent>
       </Select>
-      {showBalance && selectedToken && (
+      {showBalance && (
         <div className="text-right">
           <span className="text-xs text-gray-400">
-            Balance: {selectedToken.balance} {selectedToken.label}
+            Balance: {parseFloat(balance).toFixed(2)} {selectedToken?.label || 'BridgeToken'}
           </span>
         </div>
       )}
@@ -127,15 +162,21 @@ function ChainSelector({
           <SelectValue placeholder="Select network" />
         </SelectTrigger>
         <SelectContent className="bg-gray-800 border-gray-700">
-          {CHAINS.map((chain) => (
-            <SelectItem key={chain.value} value={chain.value} className="text-white hover:bg-gray-700 focus:bg-gray-700">
-              <div className="flex items-center space-x-3">
-                <div className={`w-3 h-3 rounded-full ${chain.color}`}></div>
-                <span>{chain.icon}</span>
-                <span>{chain.label}</span>
-              </div>
-            </SelectItem>
-          ))}
+          {CHAINS.map((chain) => {
+            const IconComponent = chain.icon;
+            return (
+              <SelectItem key={chain.value} value={chain.value} className="text-white hover:bg-gray-700 focus:bg-gray-700">
+                <div className="flex items-center space-x-3">
+                  <div className={`w-3 h-3 rounded-full ${chain.color}`}></div>
+                  <IconComponent 
+                    className="w-5 h-5" 
+                    style={{ color: chain.iconColor }}
+                  />
+                  <span>{chain.label}</span>
+                </div>
+              </SelectItem>
+            );
+          })}
         </SelectContent>
       </Select>
     </div>
@@ -145,37 +186,76 @@ function ChainSelector({
 function MainContent() {
   const [fromChain, setFromChain] = useState<string>("ethereum");
   const [toChain, setToChain] = useState<string>("solana");
-  const [token, setToken] = useState<string>("USDC");
+  const [token, setToken] = useState<string>("BridgeToken");
   const [amount, setAmount] = useState<string>("");
   const [customAddress, setCustomAddress] = useState<string>("");
   const [showCustomAddress, setShowCustomAddress] = useState(false);
   const [progress, setProgress] = useState<number>(0);
-  const [isTransferring, setIsTransferring] = useState(false);
+
+  // Ethereum bridge functionality
+  const { 
+    isConnected: isEthConnected, 
+    address: ethAddress, 
+    chain: ethChain,
+    isTransferring, 
+    currentStep,
+    tokenBalance,
+    isBalanceLoading,
+    balanceError,
+    executeBridgeTransfer,
+    refetchBalance 
+  } = useBridgeDataAccess();
+
+  // Solana wallet
+  const { connected: isSolanaConnected, publicKey: solanaAddress } = useWallet();
 
   const selectedToken = TOKENS.find(t => t.value === token);
   const selectedFromChain = CHAINS.find(c => c.value === fromChain);
   const selectedToChain = CHAINS.find(c => c.value === toChain);
   const estimatedValue = amount ? (parseFloat(amount) * 1.0001).toFixed(4) : "0.00";
 
-  const startTransfer = () => {
+  // Refresh balance when wallet connects
+  useEffect(() => {
+    if (isEthConnected && ethAddress) {
+      refetchBalance();
+    }
+  }, [isEthConnected, ethAddress, refetchBalance]);
+
+  // Update token balance display
+  useEffect(() => {
+    if (selectedToken && tokenBalance) {
+      selectedToken.balance = parseFloat(tokenBalance.toString()).toFixed(4);
+    }
+  }, [tokenBalance, selectedToken]);
+
+  const startTransfer = async () => {
     if (!amount) {
       toast.error("Enter amount");
       return;
     }
 
-    setIsTransferring(true);
-    let current = 0;
-    setProgress(0);
-    
-    const interval = setInterval(() => {
-      current += 1;
-      setProgress((current / STEP_LABELS.length) * 100);
-      if (current >= STEP_LABELS.length) {
-        clearInterval(interval);
-        setIsTransferring(false);
-        toast.success("Transfer complete!");
-      }
-    }, 1500);
+    if (!isEthConnected) {
+      toast.error("Please connect your Ethereum wallet");
+      return;
+    }
+
+    if (!isSolanaConnected) {
+      toast.error("Please connect your Solana wallet");
+      return;
+    }
+
+    const destChainAddr = solanaAddress?.toString() || customAddress;
+    if (!destChainAddr) {
+      toast.error("Please provide a Solana destination address");
+      return;
+    }
+
+    // Execute the actual bridge transfer
+    await executeBridgeTransfer({
+      amount,
+      destChainAddr,
+      destChainMintAddr: "7fD1uH15XByFTnGjDZr5tFQjxtaWBZUYpecXeesr1jom", // Default Solana mint address
+    });
   };
 
   const swapChains = () => {
@@ -208,6 +288,84 @@ function MainContent() {
         <div className="flex items-center justify-center min-h-screen p-4">
           <div className="w-full max-w-md space-y-6">
             
+            {/* Network Status */}
+            <div className="text-center">
+              <Badge variant="outline" className="bg-green-900/20 border-green-500 text-green-400">
+                <Zap className="w-3 h-3 mr-1" />
+                {process.env.NEXT_PUBLIC_ETH_NETWORK === 'sepolia' ? 'Sepolia Testnet' : 'Hardhat Local'}
+              </Badge>
+            </div>
+
+            {/* Wallet Connection Section */}
+            <Card className="bg-gray-900/80 backdrop-blur border-gray-800 text-white shadow-2xl">
+              <CardHeader>
+                <CardTitle className="text-center text-lg">Connect Wallets</CardTitle>
+                <CardDescription className="text-center text-gray-400">
+                  Connect both Ethereum and Solana wallets to start bridging
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-col space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-400">Ethereum (Source)</span>
+                    <EthereumWalletButton />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-400">Solana (Destination)</span>
+                    <WalletButton />
+                  </div>
+                </div>
+                
+                {/* Balance Display */}
+                {isEthConnected && (
+                  <div className="bg-gray-800/30 rounded-lg p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-400">BridgeToken Balance</span>
+                                             <div className="flex items-center space-x-2">
+                         <span className="text-sm font-medium text-white">
+                           {isBalanceLoading ? 'Loading...' : `${tokenBalance} BrTN`}
+                         </span>
+                         <Tooltip>
+                           <TooltipTrigger asChild>
+                             <Button
+                               variant="ghost"
+                               size="icon"
+                               onClick={() => refetchBalance()}
+                               disabled={isBalanceLoading}
+                               className="h-6 w-6 text-gray-400 hover:text-white hover:bg-gray-700/50 transition-colors disabled:opacity-50"
+                             >
+                               <RefreshCw className={`h-3 w-3 ${isBalanceLoading ? 'animate-spin' : ''}`} />
+                             </Button>
+                           </TooltipTrigger>
+                           <TooltipContent>
+                             <p>Refresh balance</p>
+                           </TooltipContent>
+                         </Tooltip>
+                       </div>
+                    </div>
+                                         <div className="text-xs text-gray-500">
+                       Address: {ethAddress?.slice(0, 6)}...{ethAddress?.slice(-4)}
+                     </div>
+                     {balanceError && (
+                       <div className="text-xs text-red-400">
+                         Error loading balance. Check if contracts are deployed.
+                       </div>
+                     )}
+                  </div>
+                )}
+                
+                {process.env.NEXT_PUBLIC_ETH_NETWORK === 'sepolia' && (
+                  <Alert className="bg-amber-900/20 border-amber-500/30">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Sepolia Network</AlertTitle>
+                    <AlertDescription className="text-xs">
+                      Make sure to deploy contracts to Sepolia first and update the contract addresses in the code.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </CardContent>
+            </Card>
+            
             {/* Main Transfer Card */}
             <Card className="bg-gray-900/80 backdrop-blur border-gray-800 text-white shadow-2xl">
               <CardContent className="p-6 space-y-6">
@@ -235,7 +393,8 @@ function MainContent() {
                             variant="ghost"
                             size="sm"
                             className="text-blue-400 hover:text-blue-300 text-xs hover:bg-blue-900/20 transition-colors"
-                            onClick={() => selectedToken && setAmount(selectedToken.balance.replace(',', ''))}
+                            onClick={() => setAmount(tokenBalance.toString())}
+                            disabled={!tokenBalance || parseFloat(tokenBalance.toString()) === 0}
                           >
                             Max
                           </Button>
@@ -252,6 +411,7 @@ function MainContent() {
                     onValueChange={setToken} 
                     label=""
                     showBalance={true}
+                    balance={tokenBalance.toString()}
                   />
                 </div>
 
@@ -333,9 +493,25 @@ function MainContent() {
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-400">Route</span>
                       <div className="flex items-center space-x-2">
-                        <span className="text-xs">{selectedFromChain?.label}</span>
+                        <div className="flex items-center space-x-1">
+                          {selectedFromChain && (
+                            <selectedFromChain.icon 
+                              className="w-4 h-4" 
+                              style={{ color: selectedFromChain.iconColor }}
+                            />
+                          )}
+                          <span className="text-xs">{selectedFromChain?.label}</span>
+                        </div>
                         <ArrowUpDown className="h-3 w-3 text-gray-500" />
-                        <span className="text-xs">{selectedToChain?.label}</span>
+                        <div className="flex items-center space-x-1">
+                          {selectedToChain && (
+                            <selectedToChain.icon 
+                              className="w-4 h-4" 
+                              style={{ color: selectedToChain.iconColor }}
+                            />
+                          )}
+                          <span className="text-xs">{selectedToChain?.label}</span>
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center justify-between text-sm">
@@ -352,18 +528,26 @@ function MainContent() {
                 {/* Transfer Button */}
                 <Button
                   onClick={startTransfer}
-                  disabled={!amount || isTransferring}
+                  disabled={!amount || isTransferring || !isEthConnected || !isSolanaConnected}
                   className="w-full bg-gray-600 hover:bg-gray-500 text-white h-12 text-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isTransferring ? "Processing..." : amount ? "Transfer" : "Select network"}
+                  {isTransferring 
+                    ? "Processing..." 
+                    : !isEthConnected 
+                    ? "Connect Ethereum Wallet"
+                    : !isSolanaConnected
+                    ? "Connect Solana Wallet"
+                    : !amount 
+                    ? "Enter Amount" 
+                    : "Transfer"}
                 </Button>
 
                 {/* Progress Bar */}
-                {progress > 0 && (
+                {isTransferring && (
                   <div className="space-y-2">
-                    <Progress value={progress} className="bg-gray-800" />
+                    <Progress value={(currentStep / STEP_LABELS.length) * 100} className="bg-gray-800" />
                     <p className="text-xs text-gray-400 text-center">
-                      {STEP_LABELS[Math.min(Math.floor((progress / 100) * STEP_LABELS.length), STEP_LABELS.length - 1)]}
+                      {currentStep > 0 ? STEP_LABELS[currentStep - 1] : "Preparing..."}
                     </p>
                   </div>
                 )}

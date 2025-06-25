@@ -27,7 +27,7 @@ const { getSolanaCompatibleProof } = require("@jayanth-kumar-morem/snarkjs-to-so
 // ABIs
 import BridgeToken from "../../evm-bridge/artifacts/contracts/BridgeToken.sol/BridgeToken.json";
 import SolanaEVMBridge from "../../evm-bridge/artifacts/contracts/evm-bridge.sol/SolanaEVMBridge.json";
-import addressBook from "../../integration-tests/addressBook.json";
+import addressBook from "../../config/localhost_address_book.json";
 dotenv.config({ path: ".env.local" });
 // @ts-ignore
 import snarkjs from "snarkjs";
@@ -329,7 +329,6 @@ evmBridgeContract.on(
     } catch (err) {
         console.error("err", err);
     }
-    
   }
 );
 

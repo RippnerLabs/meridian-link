@@ -19,7 +19,6 @@ import {
   sleep,
 } from "@lightprotocol/stateless.js";
 import bs58 from "bs58";
-import { BN } from "bn.js";
 
 const path = require("path");
 const os = require("os");
@@ -58,7 +57,6 @@ describe("test-anchor", () => {
     );
     const address = deriveAddress(seed, addressTree);
     await initInstructionCall(rpc, program,signer);
-
 
     const conn = new Connection("http://localhost:8899", "confirmed");
     const decimals = 2;

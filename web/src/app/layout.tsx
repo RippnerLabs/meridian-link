@@ -3,6 +3,7 @@ import './globals.css'
 import { AppProviders } from '@/components/app-providers'
 import { AppLayout } from '@/components/app-layout'
 import { UnicornStudio } from '@/components/unicorn-studio'
+import { EthereumProvider } from '@/components/ethereum/ethereum-provider'
 
 export const metadata: Metadata = {
   title: 'Stargate Bridge',
@@ -21,9 +22,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en">
       <body className="antialiased font-sans">
         <UnicornStudio projectId="9hjPDHjq4VaefHpQxMmG" asBackground />
+        <EthereumProvider>
         <AppProviders>
           <AppLayout links={links}>{children}</AppLayout>
         </AppProviders>
+        </EthereumProvider>
       </body>
     </html>
   )

@@ -38,13 +38,13 @@ export function AppHeader({ links = [] }: { links: { label: string; path: string
         <div className="flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-3 group">
-            <div className="relative">
+            <div className="relative rounded-lg">
               <Image
                 src="/logo.png"
-                alt="Stargate Logo"
-                width={40}
-                height={40}
-                className="transition-transform duration-200 group-hover:scale-105"
+                alt="Rippner Labs Logo"
+                width={30}
+                height={30}
+                className="transition-transform duration-200 group-hover:scale-105 rounded-lg"
                 priority
               />
               <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-600/20 rounded-full blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200" />

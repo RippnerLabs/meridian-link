@@ -1,7 +1,13 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox-viem";
+import path from "path";
+import dotenv from "dotenv";
+dotenv.config({
+  path: path.join(__dirname, "../config/.accounts.env"),
+})
 
 const config: HardhatUserConfig = {
+  defaultNetwork: "hardhat",
   solidity: {
     compilers: [
       {
@@ -25,6 +31,11 @@ const config: HardhatUserConfig = {
     ],
   },
   networks: {
+    sepolia: {
+      chainId: 11155111,
+      url: process.env.SEPOLIA_URL || "",
+      accounts: process.env.ETH_BRIDGE_DEPLOYER_PRIVKEY ? [process.env.ETH_BRIDGE_DEPLOYER_PRIVKEY] : [],
+    },
     hardhat: {
       chainId: 31337,
       mining: {
