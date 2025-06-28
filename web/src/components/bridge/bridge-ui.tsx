@@ -38,6 +38,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { toast } from "sonner";
 import { CheckCircle2, AlertTriangle } from "lucide-react";
+import useSolanaTransferMonitor from "./bridge-solana-data-access";
 
 // Import Web3 Icons
 import { 
@@ -191,6 +192,7 @@ function MainContent() {
   const [customAddress, setCustomAddress] = useState<string>("");
   const [showCustomAddress, setShowCustomAddress] = useState(false);
   const [progress, setProgress] = useState<number>(0);
+  const [expectedAmountLamports, setExpectedAmountLamports] = useState<bigint>(0n);
 
   // Ethereum bridge functionality
   const { 
@@ -228,6 +230,20 @@ function MainContent() {
     }
   }, [tokenBalance, selectedToken]);
 
+  // 👀  monitor Solana balance when waiting for relay
+  const solMonitor = useSolanaTransferMonitor({
+    recipient: (solanaAddress?.toString() || customAddress) ?? "",
+    mint: process.env.NEXT_PUBLIC_SOLANA_BRIDGE_TOKEN_MINT_ADDR ?? "",
+    expectedAmount: expectedAmountLamports,
+    pollIntervalMs: 5000,
+  });
+
+  useEffect(() => {
+    if(currentStep === 3 && solMonitor.hasReceived) {
+      toast.success("Tokens received on Solana! 🎉");
+    }
+  }, [currentStep, solMonitor.hasReceived]);
+
   const startTransfer = async () => {
     if (!amount) {
       toast.error("Enter amount");
@@ -253,6 +269,10 @@ function MainContent() {
     if(!process.env.NEXT_PUBLIC_SOLANA_BRIDGE_TOKEN_MINT_ADDR) {
       throw new Error("Solana bridge token not present");
     }
+
+    // BridgeToken has 2 decimals
+    const lamports = BigInt(Math.floor(Number(amount) * 10 ** 2));
+    setExpectedAmountLamports(lamports);
 
     // Execute the actual bridge transfer
     await executeBridgeTransfer({

@@ -1,6 +1,6 @@
 'use client';
 
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi';
+import { useAccount, useWriteContract, useReadContract, usePublicClient } from 'wagmi';
 import { parseUnits, formatUnits } from 'viem';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -52,22 +52,14 @@ export function useBridgeDataAccess() {
   const { address, isConnected, chain } = useAccount();
   const [isTransferring, setIsTransferring] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const publicClient = usePublicClient();
   
   // Get contract addresses based on current chain
   const contractAddresses = getContractAddresses(chain?.id);
 
-  // Contract write hooks
-  const { writeContract: writeApprove, data: approveHash } = useWriteContract();
-  const { writeContract: writeDeposit, data: depositHash } = useWriteContract();
-
-  // Transaction receipt hooks
-  const { isLoading: isApproveLoading, isSuccess: isApproveSuccess } = useWaitForTransactionReceipt({
-    hash: approveHash,
-  });
-
-  const { isLoading: isDepositLoading, isSuccess: isDepositSuccess } = useWaitForTransactionReceipt({
-    hash: depositHash,
-  });
+  // Contract write hooks (async variants return the tx hash immediately)
+  const { writeContractAsync: writeApproveAsync } = useWriteContract();
+  const { writeContractAsync: writeDepositAsync } = useWriteContract();
 
   // Read token balance
   const { data: tokenBalance, refetch: refetchBalance, isLoading: isBalanceLoading, error: balanceError } = useReadContract({
@@ -92,36 +84,36 @@ export function useBridgeDataAccess() {
     },
   });
 
-  const approveToken = async (amount: string) => {
+  const approveToken = async (amount: string): Promise<`0x${string}` | null> => {
     if (!isConnected || !address) {
       toast.error('Please connect your Ethereum wallet');
-      return false;
+      return null;
     }
 
     try {
       setCurrentStep(1);
       const amountWei = parseUnits(amount, BRIDGE_TOKEN_DECIMALS);
       
-      writeApprove({
+      const approveTxHash = await writeApproveAsync({
         address: contractAddresses.tokenSmartContractAddress as `0x${string}`,
         abi: BridgeTokenABI.abi,
         functionName: 'approve',
         args: [contractAddresses.bridgeSmartContractAddress as `0x${string}`, amountWei],
       });
 
-      return true;
+      return approveTxHash;
     } catch (error) {
       console.error('Approval failed:', error);
       toast.error('Token approval failed');
       setCurrentStep(0);
-      return false;
+      return null;
     }
   };
 
-  const depositToBridge = async (params: BridgeTransferParams) => {
+  const depositToBridge = async (params: BridgeTransferParams): Promise<`0x${string}` | null> => {
     if (!isConnected || !address) {
       toast.error('Please connect your Ethereum wallet');
-      return false;
+      return null;
     }
 
     try {
@@ -130,7 +122,7 @@ export function useBridgeDataAccess() {
       const sourceChainId = chain?.id || 31337;
       const destChainId = 1;
 
-      writeDeposit({
+      const depositTxHash = await writeDepositAsync({
         address: contractAddresses.bridgeSmartContractAddress as `0x${string}`,
         abi: SolanaEVMBridgeABI.abi,
         functionName: 'deposit',
@@ -144,10 +136,27 @@ export function useBridgeDataAccess() {
         ],
       });
 
-      return true;
+      return depositTxHash;
     } catch (error) {
       console.error('Deposit failed:', error);
       toast.error('Bridge deposit failed');
+      setCurrentStep(0);
+      return null;
+    }
+  };
+
+  const TX_TIMEOUT_MS = 3 * 60 * 1000; // 3-minute safety timeout per tx
+
+  const waitForTx = async (hash: `0x${string}`, stepOnSuccess: number) => {
+    try {
+      if(!publicClient) throw new Error('No public client');
+      await publicClient.waitForTransactionReceipt({ hash, timeout: TX_TIMEOUT_MS });
+      setCurrentStep(stepOnSuccess);
+      return true;
+    } catch (err) {
+      console.error('Transaction timed-out / failed', err);
+      toast.error('Transaction confirmation failed – please check the explorer.');
+      setIsTransferring(false);
       setCurrentStep(0);
       return false;
     }
@@ -163,60 +172,43 @@ export function useBridgeDataAccess() {
     setCurrentStep(0);
 
     try {
-      // Step 1: Check if approval is needed
       const amountWei = parseUnits(params.amount, BRIDGE_TOKEN_DECIMALS);
-      const currentAllowance = tokenAllowance as bigint || 0n;
+      const currentAllowance = (tokenAllowance as bigint) || 0n;
 
       if (currentAllowance < amountWei) {
-        toast.info('Approving token spending...');
-        const approved = await approveToken(params.amount);
-        if (!approved) {
+        toast.info('Approving token spending…');
+
+        const approveHash = await approveToken(params.amount);
+        if (!approveHash) {
           setIsTransferring(false);
           return;
         }
-        
-        // Wait for approval to complete
-        while (!isApproveSuccess && isApproveLoading) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-        
-        if (!isApproveSuccess) {
-          toast.error('Token approval failed');
-          setIsTransferring(false);
-          return;
-        }
-        
-        toast.success('Token approved successfully');
+
+        const ok = await waitForTx(approveHash, 2);
+        if (!ok) return;
+        toast.success('Token approved');
         await refetchAllowance();
       }
 
-      // Step 2: Execute deposit
-      toast.info('Executing bridge deposit...');
-      const deposited = await depositToBridge(params);
-      if (!deposited) {
+      // 2️⃣  Deposit to bridge
+      toast.info('Sending deposit transaction…');
+      const depositHash = await depositToBridge(params);
+      if (!depositHash) {
         setIsTransferring(false);
         return;
       }
 
-      // Wait for deposit to complete
-      while (!isDepositSuccess && isDepositLoading) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
+      const ok2 = await waitForTx(depositHash, 3);
+      if (!ok2) return;
 
-      if (isDepositSuccess) {
-        setCurrentStep(3);
-        toast.success('Bridge transfer initiated successfully!');
-        await refetchBalance();
-      } else {
-        toast.error('Bridge deposit failed');
-      }
+      toast.success('Bridge deposit confirmed');
+      await refetchBalance();
 
     } catch (error) {
       console.error('Bridge transfer failed:', error);
       toast.error('Bridge transfer failed');
     } finally {
       setIsTransferring(false);
-      setCurrentStep(0);
     }
   };
 
