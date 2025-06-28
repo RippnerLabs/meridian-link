@@ -68,13 +68,39 @@ describe("test-anchor", () => {
     );
     await depositToTokenVault(rpc, signer, program, mint);
 
+    // BridgeState PDA to read current deposit_count
+    const bridgeStatePda = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("bridge_state")],
+      program.programId,
+    )[0];
+
+    // Fetch current deposit_count (0 if just initialised)
+    const bridgeStateAccount: any = await program.account.bridgeState.fetchNullable(bridgeStatePda);
+    const currentDepositCount = bridgeStateAccount ? BigInt(bridgeStateAccount.depositCount.toString()) : BigInt(0);
+    const nextDepositCount = currentDepositCount + BigInt(1);
+    // Convert the deposit count to a 16-byte buffer in little-endian format
+    // This is needed because the Solana program expects a u128 (128-bit) value
+    // represented as bytes for the deposit record seed derivation
+    const depositCountBytes = Buffer.alloc(16);
+    
+    // Split the 128-bit number into two 64-bit parts since JavaScript
+    // can only handle 64-bit integers natively
+    const twoPow64 = BigInt(1) << BigInt(64); // 2^64
+    const low = nextDepositCount % twoPow64;   // Lower 64 bits
+    const high = nextDepositCount / twoPow64;  // Upper 64 bits
+    
+    // Write both 64-bit parts to the buffer in little-endian format
+    // Bytes 0-7: lower 64 bits, Bytes 8-15: upper 64 bits
+    depositCountBytes.writeBigUInt64LE(low, 0);
+    depositCountBytes.writeBigUInt64LE(high, 8);
+
     const depositRecordSeed = deriveAddressSeed(
       [
         new TextEncoder().encode("deposit"),
         signer.publicKey.toBytes(),
-        Buffer.from(withdrawalNullifier)
+        depositCountBytes,
       ],
-      new web3.PublicKey(program.idl.address)
+      program.programId,
     );
     const depositRecordAddress = deriveAddress(depositRecordSeed, addressTree);
     console.log("depositRecordAddress", depositRecordAddress);
@@ -91,21 +117,22 @@ describe("test-anchor", () => {
 
     await initTokenBridgeCall(rpc, program, signer, SOLANA_CHAIN_ID, mint.toString(), dest_chain_id, dest_chain_mint_addr);
 
-    // await CreateDepositRecordCompressedAccount(
-    //   rpc,
-    //   addressTree,
-    //   addressQueue,
-    //   depositRecordAddress,
-    //   program,
-    //   outputMerkleTree,
-    //   signer,
-    //   mint,
-    //   SOLANA_CHAIN_ID,
-    //   mint.toString(),
-    //   dest_chain_id,
-    //   dest_chain_mint_addr,
-    //   dest_chain_addr,
-    // );
+    await CreateDepositRecordCompressedAccount(
+      rpc,
+      addressTree,
+      addressQueue,
+      depositRecordAddress,
+      program,
+      outputMerkleTree,
+      signer,
+      mint,
+      SOLANA_CHAIN_ID,
+      mint.toString(),
+      dest_chain_id,
+      dest_chain_mint_addr,
+      dest_chain_addr,
+    );
+
     const withdrawKp = anchor.web3.Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(path.join(__dirname, "../../keys/signer.json"), "utf8"))));
     const withdrawalRecordSeed = deriveAddressSeed(
       [
@@ -118,20 +145,20 @@ describe("test-anchor", () => {
     const withdrawalRecordAddress = deriveAddress(withdrawalRecordSeed, addressTree);
     console.log("withdrawalRecordAddress", withdrawalRecordAddress);
 
-    await CreateWithdrawalRecordCompressedAccount(
-      rpc,
-      addressTree,
-      addressQueue,
-      withdrawalRecordAddress,
-      program,
-      outputMerkleTree,
-      signer,
-      mint,
-      dest_chain_id,
-      dest_chain_mint_addr,
-      SOLANA_CHAIN_ID,
-      mint.toString(),
-    );
+    // await CreateWithdrawalRecordCompressedAccount(
+    //   rpc,
+    //   addressTree,
+    //   addressQueue,
+    //   withdrawalRecordAddress,
+    //   program,
+    //   outputMerkleTree,
+    //   signer,
+    //   mint,
+    //   dest_chain_id,
+    //   dest_chain_mint_addr,
+    //   SOLANA_CHAIN_ID,
+    //   mint.toString(),
+    // );
     // Create counter compressed account.
     // await CreateCounterCompressedAccount(
     //   rpc,
@@ -367,7 +394,7 @@ async function CreateDepositRecordCompressedAccount(
     // console.log("des depositRecord ", depositRecord);
     const accProof = await rpc.getCompressedAccountProof(depositRecordAccount.hash);
 
-    const integrationTestsDir = path.join(__dirname, "../../integration-tests");
+    const integrationTestsDir = path.join(__dirname, "../../config");
     // Convert BN amount to decimal string before writing to record.json
     const recordForJson = {
       ...depositRecord,
@@ -375,9 +402,9 @@ async function CreateDepositRecordCompressedAccount(
       timestamp: depositRecord.timestamp.toString(),
       deposit_id: depositRecord.deposit_id.toString(),
     };
-    fs.writeFileSync(path.join(integrationTestsDir, "record.json"), JSON.stringify(recordForJson));
-    fs.writeFileSync(path.join(integrationTestsDir, "proof.json"), JSON.stringify(accProof));
-    fs.writeFileSync(path.join(integrationTestsDir, "account.json"), JSON.stringify(depositRecordAccount));
+    fs.writeFileSync(path.join(integrationTestsDir, "sol_deposit_record.json"), JSON.stringify(recordForJson));
+    fs.writeFileSync(path.join(integrationTestsDir, "sol_deposit_proof.json"), JSON.stringify(accProof));
+    fs.writeFileSync(path.join(integrationTestsDir, "sol_deposit_account.json"), JSON.stringify(depositRecordAccount));
   }
 }
 
@@ -487,7 +514,7 @@ async function CreateWithdrawalRecordCompressedAccount(
       outputMerkleTreeIndex,
       bn(50 * 10*2),
       linkHash,
-      Buffer.from(withdrawalNullifier),
+      withdrawalNullifier,
     )
     .accounts({
       relayer: signer.publicKey,
