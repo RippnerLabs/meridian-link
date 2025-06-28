@@ -57,9 +57,9 @@ export async function deploy() {
   }
 
   const addressBook =  {
-    verifierSmartContractAddress: verifier.address,
-    bridgeSmartContractAddress: bridge.address,
-    tokenSmartContractAddress: token.address,
+    verifierSmartContractAddress: verifier.address.toString(),
+    bridgeSmartContractAddress: bridge.address.toString(),
+    tokenSmartContractAddress: token.address.toString(),
     secondWalletAddress: secondWalletAddress,
     deployer: deployer.account.address
   }

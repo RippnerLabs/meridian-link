@@ -6,7 +6,7 @@ import { UnicornStudio } from '@/components/unicorn-studio'
 import { EthereumProvider } from '@/components/ethereum/ethereum-provider'
 
 export const metadata: Metadata = {
-  title: 'Stargate Bridge',
+  title: 'Meridian Link',
   description: 'Cross-chain token bridge with zero-knowledge proofs',
 }
 
@@ -21,7 +21,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body className="antialiased font-sans">
-        <UnicornStudio projectId="9hjPDHjq4VaefHpQxMmG" asBackground />
+        <UnicornStudio projectId="ic8SR9XEydE5ANSP8W0B" asBackground />
         <EthereumProvider>
         <AppProviders>
           <AppLayout links={links}>{children}</AppLayout>

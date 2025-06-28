@@ -11,9 +11,9 @@ import SolanaEVMBridgeABI from '@/contracts/SolanaEVMBridge.json';
 
 // Smart contract addresses
 const LOCALHOST_ADDRESSES = {
-  verifierSmartContractAddress: "0x5fbdb2315678afecb367f032d93f642f64180aa3",
-  bridgeSmartContractAddress: "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512",
-  tokenSmartContractAddress: "0x9fe46736679d2d9a65f0992f2272de9f3c7fa6e0",
+  verifierSmartContractAddress: "0x4a679253410272dd5232b3ff7cf5dbb88f295319",
+  bridgeSmartContractAddress: "0x7a2088a1bfc9d81c55368ae168c2c02570cb814f",
+  tokenSmartContractAddress: "0x09635f643e140090a9a8dcd712ed6285858cebef",
   secondWalletAddress: "0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
   deployer: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 };

@@ -1,6 +1,5 @@
 import fs from "fs";
-import {Connection, PublicKey} from "@solana/web3.js";
-import {getAccount, getOrCreateAssociatedTokenAccount, TOKEN_PROGRAM_ID} from "@solana/spl-token";
+import {TOKEN_PROGRAM_ID} from "@solana/spl-token";
 import * as anchor from "@coral-xyz/anchor";
 import { CrossChainTokenBridge } from "../../sol-bridge/target/types/cross_chain_token_bridge";
 import idl from "../../sol-bridge/target/idl/cross_chain_token_bridge.json";
@@ -17,6 +16,7 @@ import {
   sleep,
 } from "@lightprotocol/stateless.js";
 import path from "path";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 // globals
 const provider = anchor.AnchorProvider.env();
@@ -37,10 +37,17 @@ export async function solanaWithdraw(proofProc: any, depositEvent: any) {
   const addressTree = defaultAddressTreeInfo.tree;
   const addressQueue = defaultAddressTreeInfo.queue;
 
+  // process eth addresses
+  depositEvent.tokenMint = bs58.encode(
+    Buffer.from(depositEvent.tokenMint.replace("0x", ""), "hex")
+  )
+  depositEvent.depositor = bs58.encode(
+  Buffer.from(depositEvent.depositor.replace("0x", ""), "hex")
+  )
 
   // initWithdrawalProofAccount
   const withdrawalProofTx = await program.methods.initWithdrawalProofAccount(
-    bn(BigInt(depositEvent.depositId)),
+    bn(depositEvent.depositId.toString()),
     proofProc.proofA,
     proofProc.proofB,
     proofProc.proofC,
@@ -92,33 +99,33 @@ export async function solanaWithdraw(proofProc: any, depositEvent: any) {
   const outputMerkleTreeIndex = remainingAccounts.insertOrGet(outputMerkleTree);
 
   let proof = {
-    0: proofRes
+    0: proofRes.compressedProof
   }
 
   const computeBudgetIx = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({
     units: 1000000,
   });
 
-  const addressBook = JSON.parse(fs.readFileSync(path.join(__dirname, `../../config/${process.env.RUNTIME}_address_book.json`), "utf8"));
-
+  const link = `${depositEvent.sourceChainId}_${depositEvent.tokenMint}_${depositEvent.destChainId}_${depositEvent.destChainMintAddr}`;
+  console.log('link', link);
   const linkHash = require('crypto').createHash('sha256')
-  .update(`${depositEvent.sourceChainId}_${depositEvent.tokenMint}_${depositEvent.destChainId}_${depositEvent.destChainMintAddr}`)
+  .update(link)
   .digest('hex')
   .slice(0, 16);
-
+  console.log("linkHash", linkHash);
   let tx = await program.methods
   .withdraw(
     proof,
     packedAddressMerkleContext,
     outputMerkleTreeIndex,
-    bn(depositEvent.amount),
+    bn(depositEvent.amount.toString()),
     linkHash,
     Buffer.from(proofProc.publicSignals[0])
   )
   .accounts({
     relayer: relayerKp.publicKey,
     recipient: depositEvent.destChainAddr,
-    mint: new anchor.web3.PublicKey(depositEvent.destChainAddr),
+    mint: new anchor.web3.PublicKey(depositEvent.destChainMintAddr),
     tokenProgram: TOKEN_PROGRAM_ID
   })
   .preInstructions([computeBudgetIx])
@@ -220,6 +227,7 @@ function getLightSystemAccountMetas(
   const metas: anchor.web3.AccountMeta[] = [
     {pubkey: defaults.lightSystemProgram, isSigner: false, isWritable: false},
     {pubkey: cpiSigner, isSigner: false, isWritable: false},
+    {pubkey: defaults.registeredProgramPda, isSigner: false, isWritable: false},
     {pubkey: defaults.noopProgram, isSigner: false, isWritable: false},
     {pubkey: defaults.accountCompressionAuthority, isSigner: false, isWritable: false},
     {pubkey: defaults.accountCompressionProgram, isSigner: false, isWritable: false},

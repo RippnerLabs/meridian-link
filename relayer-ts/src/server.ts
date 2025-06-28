@@ -19,10 +19,15 @@ import idl from "../../sol-bridge/target/idl/cross_chain_token_bridge.json";
 import bs58 from "bs58";
 import dotenv from "dotenv";
 import { ethers } from "ethers";
-import {IndexedMerkleTree, NonMembershipProof} from "@jayanth-kumar-morem/indexed-merkle-tree"
+import {
+  IndexedMerkleTree,
+  NonMembershipProof,
+} from "@jayanth-kumar-morem/indexed-merkle-tree";
 import { poseidon9 } from "poseidon-lite";
 import * as fs from "fs";
-const { getSolanaCompatibleProof } = require("@jayanth-kumar-morem/snarkjs-to-solana");
+const {
+  getSolanaCompatibleProof,
+} = require("@jayanth-kumar-morem/snarkjs-to-solana");
 
 // ABIs
 import BridgeToken from "../../evm-bridge/artifacts/contracts/BridgeToken.sol/BridgeToken.json";
@@ -256,82 +261,101 @@ evmBridgeContract.on(
     ...args
   ) => {
     try {
-        let depositEvent = {
-            depositor,
-            sourceChainId,
-            destChainId,
-            destChainAddr,
-            destChainMintAddr,
-            tokenMint,
-            amount,
-            timestamp,
-            depositId,
-        }
-        console.log("depositEvent", depositEvent);
-        const depositEventArr = [
-          depositor,
-          sourceChainId,
-          destChainId,
-          destChainAddr,
-          destChainMintAddr,
-          tokenMint,
-          amount,
-          timestamp,
-          depositId,
-        ];
+      let depositEvent = {
+        depositor,
+        sourceChainId,
+        destChainId,
+        destChainAddr,
+        destChainMintAddr,
+        tokenMint,
+        amount,
+        timestamp,
+        depositId,
+      };
+      console.log("depositEvent", depositEvent);
+      const depositEventArr = [
+        depositor,
+        sourceChainId,
+        destChainId,
+        destChainAddr,
+        destChainMintAddr,
+        tokenMint,
+        amount,
+        timestamp,
+        depositId,
+      ];
 
-        const toBigInt = (x: any) => {
-            try {
-                return BigInt(String(x)).toString()
-            } catch {
-                return BigInt("0x" + Buffer.from(bs58.decode(x)).toString("hex")).toString()
-            }
-        }
-
-        const bigInts = depositEventArr.map(x => toBigInt(x));
-        const nullifier = poseidon9(bigInts)
-        
-        const fileStorage = "./ethDepositIMT.json";
-        // IndexedMerkleTree, NonMembershipProof, Leaf, SerializedIMT
-        let imt;
+      const toBigInt = (x: any) => {
         try {
-          imt = IndexedMerkleTree.loadFromFile(fileStorage);
-        } catch (err) {
-          console.log("err", err);
-          imt = new IndexedMerkleTree();
+          return BigInt(String(x)).toString();
+        } catch {
+          return BigInt(
+            "0x" + Buffer.from(bs58.decode(x)).toString("hex")
+          ).toString();
         }
-        const proof: NonMembershipProof = imt.createNonMembershipProof(nullifier);
-        
-        const toDec = (x: bigint | string) => BigInt(x).toString();
-        const circuitInputs = {
-            ...Object.fromEntries(Object.entries(depositEvent).map(([k, v]) => [k, toBigInt(v)])),
-            pre_val: toDec(proof.preLeaf.val),
-            pre_next: toDec(proof.preLeaf.nextVal),
-            path: proof.path.map(toDec),
-            dirs: proof.directions.map(String),
-            old_root: toDec(proof.root),
-            nullifier: nullifier.toString(),
-        }
+      };
 
-        console.log("circuitInputs", circuitInputs);
+      const bigInts = depositEventArr.map((x) => toBigInt(x));
+      const nullifier = poseidon9(bigInts);
 
-        const {proof: circuitProof, publicSignals: circomPublicSignals} = await snarkjs.groth16.fullProve(
-            circuitInputs,
-            "../circom/ethDepositProof_js/ethDepositProof.wasm",
-            "../circom/ethDepositProof_js/1_0000.zkey",
-        )
+      const fileStorage = "./ethDepositIMT.json";
+      let imt;
+      try {
+        imt = IndexedMerkleTree.loadFromFile(fileStorage);
+      } catch (err) {
+        console.log("err", err);
+        imt = new IndexedMerkleTree();
+      }
+      const proof: NonMembershipProof = imt.createNonMembershipProof(nullifier);
 
-        const proofProc = await getSolanaCompatibleProof(circuitProof, circomPublicSignals);
+      const toDec = (x: bigint | string) => BigInt(x).toString();
+      const circuitInputs = {
+        ...Object.fromEntries(
+          Object.entries(depositEvent).map(([k, v]) => [k, toBigInt(v)])
+        ),
+        pre_val: toDec(proof.preLeaf.val),
+        pre_next: toDec(proof.preLeaf.nextVal),
+        path: proof.path.map(toDec),
+        dirs: proof.directions.map(String),
+        old_root: toDec(proof.root),
+        nullifier: nullifier.toString(),
+      };
 
-        // console.log({proofA, proofB, proofC, publicSignals, nullifier});
-        const withdrawalRecord = await solanaWithdraw(proofProc, depositEvent);
+      const circuitInputs1 = {
+        ...Object.fromEntries(
+          Object.entries(depositEvent).map(([k, v]) => [k, toBigInt(v).toString()])
+        ),
+        pre_val: toDec(proof.preLeaf.val),
+        pre_next: toDec(proof.preLeaf.nextVal),
+        path: proof.path.map(toDec),
+        dirs: proof.directions.map(String),
+        old_root: toDec(proof.root),
+        nullifier: nullifier.toString(),
+      };
 
-        await imt.insert(nullifier);
-        fs.writeFileSync(fileStorage, JSON.stringify(imt.serialize()));
+      console.log("circuitInputs", JSON.stringify(circuitInputs1));
 
-        return withdrawalRecord;
+      const { proof: circuitProof, publicSignals: circomPublicSignals } =
+        await snarkjs.groth16.fullProve(
+          circuitInputs,
+          "../circom/ethDepositProof_js/ethDepositProof.wasm",
+          "../circom/ethDepositProof_js/1_0000.zkey"
+        );
+
+      const proofProc = await getSolanaCompatibleProof(
+        circuitProof,
+        circomPublicSignals
+      );
+      console.log("proofProc", proofProc);
+      // console.log({proofA, proofB, proofC, publicSignals, nullifier});
+      const withdrawalRecord = await solanaWithdraw(proofProc, depositEvent);
+
+      await imt.insert(nullifier);
+      fs.writeFileSync(fileStorage, JSON.stringify(imt.serialize()));
+
+      return withdrawalRecord;
     } catch (err) {
-        console.error("err", err);
+      console.error("err", err);
     }
   }
 );

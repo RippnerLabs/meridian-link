@@ -78,6 +78,12 @@ pub fn withdraw_handler<'info>(
 ) -> Result<()> {
     require!(amount > 0, ErrorCode::WithdrawAmountShouldBeGreaterThanZero);
     let withdrawal_proof = &ctx.accounts.withdrawal_proof;
+    msg!("Verifying withdrawal proof with proof_a: {:?}, proof_b: {:?}, proof_c: {:?}, nullifier: {:?}, new_root: {:?}", 
+         withdrawal_proof.proof_a, 
+         withdrawal_proof.proof_b, 
+         withdrawal_proof.proof_c, 
+         withdrawal_proof.nullifier, 
+         withdrawal_proof.new_root);
     groth16_verifier(withdrawal_proof.proof_a, withdrawal_proof.proof_b, withdrawal_proof.proof_c, &[withdrawal_proof.nullifier, withdrawal_proof.new_root], ETHDEPOSIT_VERIFYINGKEY);
 
     let transfer_checked_t = TransferChecked {

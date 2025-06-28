@@ -8,5 +8,5 @@ pub mod withdraw;
 pub use withdraw::*;
 pub mod init_withdrawal_proof_account;
 pub use init_withdrawal_proof_account::*;
-pub mod deposti_to_vault;
-pub use deposti_to_vault::*;
+pub mod deposit_to_vault;
+pub use deposit_to_vault::*;

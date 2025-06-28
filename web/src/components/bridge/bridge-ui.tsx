@@ -249,12 +249,16 @@ function MainContent() {
       toast.error("Please provide a Solana destination address");
       return;
     }
+    console.log("process.env.NEXT_PUBLIC_SOLANA_BRIDGE_TOKEN_MINT_ADDR", process.env.NEXT_PUBLIC_SOLANA_BRIDGE_TOKEN_MINT_ADDR);
+    if(!process.env.NEXT_PUBLIC_SOLANA_BRIDGE_TOKEN_MINT_ADDR) {
+      throw new Error("Solana bridge token not present");
+    }
 
     // Execute the actual bridge transfer
     await executeBridgeTransfer({
       amount,
       destChainAddr,
-      destChainMintAddr: "7fD1uH15XByFTnGjDZr5tFQjxtaWBZUYpecXeesr1jom", // Default Solana mint address
+      destChainMintAddr: process.env.NEXT_PUBLIC_SOLANA_BRIDGE_TOKEN_MINT_ADDR
     });
   };
 

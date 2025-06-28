@@ -381,7 +381,6 @@ async function CreateDepositRecordCompressedAccount(
   }
 }
 
-
 async function CreateWithdrawalRecordCompressedAccount(
   rpc:Rpc,
   addressTree: anchor.web3.PublicKey,

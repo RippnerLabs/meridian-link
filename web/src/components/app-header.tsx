@@ -50,7 +50,7 @@ export function AppHeader({ links = [] }: { links: { label: string; path: string
               <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-600/20 rounded-full blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
             </div>
             <span className="text-2xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
-              Stargate
+              Meridian Link
             </span>
           </Link>
 

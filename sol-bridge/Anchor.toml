@@ -15,4 +15,4 @@ test = "ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
 
 [provider]
 cluster = "localnet"
-wallet = "~/.config/solana/id.json"
+wallet = "../keys/signer.json"

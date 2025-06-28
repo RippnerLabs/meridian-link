@@ -8,7 +8,7 @@ export default function Home() {
         <div className="text-center space-y-8 max-w-2xl">
           <div className="space-y-4">
             <h1 className="text-6xl font-bold bg-gradient-to-r from-blue-400 to-purple-600 bg-clip-text text-transparent">
-              Stargate
+              Meridian Link
             </h1>
             <p className="text-xl text-gray-400">
               The future of cross-chain transfers
