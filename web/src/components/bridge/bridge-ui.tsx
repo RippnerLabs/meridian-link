@@ -38,7 +38,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { toast } from "sonner";
 import { CheckCircle2, AlertTriangle } from "lucide-react";
-import useSolanaTransferMonitor from "./bridge-solana-data-access";
+import useSolanaTransferMonitor, { depositToSolanaBridge } from "./bridge-solana-data-access";
 
 // Import Web3 Icons
 import { 
@@ -193,6 +193,7 @@ function MainContent() {
   const [showCustomAddress, setShowCustomAddress] = useState(false);
   const [progress, setProgress] = useState<number>(0);
   const [expectedAmountLamports, setExpectedAmountLamports] = useState<bigint>(0n);
+  const [currentStep, setCurrentStep] = useState<number>(0);
 
   // Ethereum bridge functionality
   const { 
@@ -200,7 +201,6 @@ function MainContent() {
     address: ethAddress, 
     chain: ethChain,
     isTransferring, 
-    currentStep,
     tokenBalance,
     isBalanceLoading,
     balanceError,
@@ -272,14 +272,64 @@ function MainContent() {
 
     // BridgeToken has 2 decimals
     const lamports = BigInt(Math.floor(Number(amount) * 10 ** 2));
-    setExpectedAmountLamports(lamports);
 
-    // Execute the actual bridge transfer
-    await executeBridgeTransfer({
-      amount,
-      destChainAddr,
-      destChainMintAddr: process.env.NEXT_PUBLIC_SOLANA_BRIDGE_TOKEN_MINT_ADDR
-    });
+    if(fromChain === 'ethereum' && toChain === 'solana') {
+      // ---------- ETH ➜ SOL flow (existing) ----------
+      setExpectedAmountLamports(lamports);
+      await executeBridgeTransfer({
+        amount,
+        destChainAddr,
+        destChainMintAddr: process.env.NEXT_PUBLIC_SOLANA_BRIDGE_TOKEN_MINT_ADDR
+      });
+    } else if(fromChain === 'solana' && toChain === 'ethereum') {
+      // ---------- SOL ➜ ETH flow (new) ----------
+      if(!isSolanaConnected) {
+        toast.error('Connect Solana wallet');
+        return;
+      }
+
+      try {
+        setCurrentStep(1); // Deposit on Solana
+        const solTxSig = await depositToSolanaBridge({
+          amountLamports: lamports,
+          mint: process.env.NEXT_PUBLIC_SOLANA_BRIDGE_TOKEN_MINT_ADDR ?? '',
+          bridgeProgramId: process.env.NEXT_PUBLIC_SOLANA_BRIDGE_PROGRAM_ID ?? '',
+          destChainId: ethChain?.id || 31337,
+          destChainAddr: ethAddress ?? '',
+          destChainMintAddr: selectedToken?.value ?? ''
+        });
+        toast.success(`Solana deposit tx sent: ${solTxSig.slice(0,6)}…`);
+
+        // Step 2 – Wait for relayer to process withdrawal
+        setCurrentStep(2);
+        toast.info('Waiting for relayer to execute withdrawal on Ethereum…');
+
+        // poll ERC20 balance until increased
+        const startBal = parseFloat(tokenBalance.toString());
+        let attempts = 0;
+        const MAX_ATTEMPTS = 360; // ~30 min at 5s intervals
+        while(attempts < MAX_ATTEMPTS) {
+          await new Promise(r => setTimeout(r, 5000));
+          await refetchBalance();
+          const newBal = parseFloat((selectedToken?.balance ?? '0'));
+          if(newBal > startBal) {
+            setCurrentStep(3);
+            toast.success('Tokens received on Ethereum! 🎉');
+            break;
+          }
+          attempts++;
+        }
+
+        if(attempts >= MAX_ATTEMPTS) {
+          toast.error('Timed-out waiting for withdrawal');
+          setCurrentStep(0);
+        }
+      } catch(err:any) {
+        console.error(err);
+        toast.error('Solana deposit failed');
+        setCurrentStep(0);
+      }
+    }
   };
 
   const swapChains = () => {
