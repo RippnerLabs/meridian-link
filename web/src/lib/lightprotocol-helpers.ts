@@ -2,7 +2,7 @@ import * as anchor from '@coral-xyz/anchor'
 import { defaultStaticAccountsStruct, LightSystemProgram } from '@lightprotocol/stateless.js'
 
 export class SystemAccountMetaConfig {
-  selfProgram: anchor.web3.PublicKey
+  selfProgram!: anchor.web3.PublicKey
   cpiContext?: anchor.web3.PublicKey
   solCompressionRecipient?: anchor.web3.PublicKey
   solPoolPda?: anchor.web3.PublicKey
@@ -13,10 +13,10 @@ export class SystemAccountMetaConfig {
     solCompressionRecipient?: anchor.web3.PublicKey,
     solPoolPda?: anchor.web3.PublicKey,
   ) {
-    self.selfProgram = selfProgram
-    self.cpiContext = cpiContext
-    self.solCompressionRecipient = solCompressionRecipient
-    self.solPoolPda = solPoolPda
+    this.selfProgram = selfProgram
+    this.cpiContext = cpiContext
+    this.solCompressionRecipient = solCompressionRecipient
+    this.solPoolPda = solPoolPda
   }
 
   static new(selfProgramId: anchor.web3.PublicKey) {
@@ -89,7 +89,7 @@ export class PackedAccounts {
 }
 
 function getLightSystemAccountMeta(config: SystemAccountMetaConfig): anchor.web3.AccountMeta[] {
-  let signerSeed = new TextEncoder().encode('cpi_authority')
+  let signerSeed = new TextEncoder().encode("cpi_authority");
   const cpiSigner = anchor.web3.PublicKey.findProgramAddressSync([signerSeed], config.selfProgram)[0]
   const defaults = SystemAccountPubkeys.default()
   const metas: anchor.web3.AccountMeta[] = [

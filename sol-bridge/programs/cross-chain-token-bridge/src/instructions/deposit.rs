@@ -5,6 +5,11 @@ use light_sdk::{account::LightAccount, address::v1::derive_address, cpi::{CpiAcc
 
 use crate::{error::ErrorCode, state::{BridgeState, DepositRecordCompressedAccount, TokenBridge, SOURCE_CHAIN_ID}, CounterCompressedAccount};
 
+#[event]
+pub struct DepositEvent {
+    address: [u8;32],
+}
+
 #[derive(Accounts)]
 #[instruction(
     proof: ValidityProof,
@@ -145,6 +150,8 @@ pub fn deposit_handler<'info> (
         msg!("Error invoking light system program: {:?}", e);
         ProgramError::from(e)
     })?;
+
+    emit!(DepositEvent{address});
 
     Ok(())
 }

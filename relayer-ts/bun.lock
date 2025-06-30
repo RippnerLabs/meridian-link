@@ -7,7 +7,7 @@
         "@coral-xyz/anchor": "^0.31.1",
         "@jayanth-kumar-morem/indexed-merkle-tree": "^1.1.2",
         "@jayanth-kumar-morem/snarkjs-to-solana": "file:/Users/jayanthkumar/Downloads/work/snarkjs-to-solana/dist",
-        "@lightprotocol/stateless.js": "^0.22.0",
+        "@lightprotocol/stateless.js": "0.21.0",
         "@metaplex-foundation/mpl-token-metadata": "^3.4.0",
         "@metaplex-foundation/umi": "^1.2.0",
         "@metaplex-foundation/umi-bundle-defaults": "^1.2.0",
@@ -123,7 +123,7 @@
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.9", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.0.3", "@jridgewell/sourcemap-codec": "^1.4.10" } }, "sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ=="],
 
-    "@lightprotocol/stateless.js": ["@lightprotocol/stateless.js@0.22.0", "", { "dependencies": { "@coral-xyz/borsh": "^0.29.0", "@noble/hashes": "1.5.0", "bn.js": "^5.2.1", "bs58": "^6.0.0", "buffer": "6.0.3", "buffer-layout": "^1.2.2", "camelcase": "^8.0.0", "camelcase-keys": "^9.1.3", "superstruct": "2.0.2" }, "peerDependencies": { "@solana/web3.js": ">=1.73.5" } }, "sha512-2I7g/pIq/Bbm6Qax1djT4TEwBHmGWJpvhF2pdRyyO6k3f4a1ZR3hDdesbpZ99FPH7LysiCcMR1cJvVjw39ZNfA=="],
+    "@lightprotocol/stateless.js": ["@lightprotocol/stateless.js@0.21.0", "", { "dependencies": { "@coral-xyz/borsh": "^0.29.0", "@noble/hashes": "1.5.0", "bn.js": "^5.2.1", "bs58": "^6.0.0", "buffer": "6.0.3", "buffer-layout": "^1.2.2", "camelcase": "^8.0.0", "camelcase-keys": "^9.1.3", "superstruct": "2.0.2" }, "peerDependencies": { "@solana/web3.js": ">=1.73.5" } }, "sha512-IWX586WFdvex4YKmrtuqtV0SpohRw7OhVwuxBw0IMkJoNQiFWLU9cOFp/Yeayw/ltlL9P15fHT0nVvOkZ8++Wg=="],
 
     "@metaplex-foundation/mpl-token-metadata": ["@metaplex-foundation/mpl-token-metadata@3.4.0", "", { "dependencies": { "@metaplex-foundation/mpl-toolbox": "^0.10.0" }, "peerDependencies": { "@metaplex-foundation/umi": ">= 0.8.2 <= 1" } }, "sha512-AxBAYCK73JWxY3g9//z/C9krkR0t1orXZDknUPS4+GjwGH2vgPfsk04yfZ31Htka2AdS9YE/3wH7sMUBHKn9Rg=="],
 

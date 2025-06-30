@@ -390,7 +390,6 @@ async function CreateDepositRecordCompressedAccount(
         depositRecordAccount.data.data,
       )
  
-    // console.log("depositRecord account ", depositRecordAccount);
     // console.log("des depositRecord ", depositRecord);
     const accProof = await rpc.getCompressedAccountProof(depositRecordAccount.hash);
 

@@ -71,7 +71,7 @@ const CHAINS = [
 
 const TOKENS = [
   { 
-    value: "BridgeToken", 
+    value: "0x09635f643e140090a9a8dcd712ed6285858cebef", 
     label: "BridgeToken", 
     balance: "0", 
     icon: TokenUSDC,
@@ -209,7 +209,8 @@ function MainContent() {
   } = useBridgeDataAccess();
 
   // Solana wallet
-  const { connected: isSolanaConnected, publicKey: solanaAddress } = useWallet();
+  const solWallet = useWallet();
+  const { connected: isSolanaConnected, publicKey: solanaAddress } = solWallet;
 
   const selectedToken = TOKENS.find(t => t.value === token);
   const selectedFromChain = CHAINS.find(c => c.value === fromChain);
@@ -282,7 +283,7 @@ function MainContent() {
         destChainMintAddr: process.env.NEXT_PUBLIC_SOLANA_BRIDGE_TOKEN_MINT_ADDR
       });
     } else if(fromChain === 'solana' && toChain === 'ethereum') {
-      // ---------- SOL ➜ ETH flow (new) ----------
+      // ---------- SOL -> ETH flow (new) ----------
       if(!isSolanaConnected) {
         toast.error('Connect Solana wallet');
         return;
@@ -296,7 +297,8 @@ function MainContent() {
           bridgeProgramId: process.env.NEXT_PUBLIC_SOLANA_BRIDGE_PROGRAM_ID ?? '',
           destChainId: ethChain?.id || 31337,
           destChainAddr: ethAddress ?? '',
-          destChainMintAddr: selectedToken?.value ?? ''
+          destChainMintAddr: selectedToken?.value ?? '',
+          wallet: solWallet,
         });
         toast.success(`Solana deposit tx sent: ${solTxSig.slice(0,6)}…`);
 

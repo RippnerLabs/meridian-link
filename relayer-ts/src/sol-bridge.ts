@@ -1,5 +1,5 @@
 import fs from "fs";
-import {TOKEN_PROGRAM_ID} from "@solana/spl-token";
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import * as anchor from "@coral-xyz/anchor";
 import { CrossChainTokenBridge } from "../../sol-bridge/target/types/cross_chain_token_bridge";
 import idl from "../../sol-bridge/target/idl/cross_chain_token_bridge.json";
@@ -17,14 +17,25 @@ import {
 } from "@lightprotocol/stateless.js";
 import path from "path";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { BN } from "bn.js";
+import snarkjs from "snarkjs";
+import { handleSolDeposit } from "./server";
 
 // globals
 const provider = anchor.AnchorProvider.env();
 anchor.setProvider(provider);
 const program = new anchor.Program(idl as CrossChainTokenBridge, provider);
-const relayerKp = anchor.web3.Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(path.join(__dirname, "../relayer.json"), "utf8"))));
+const relayerKp = anchor.web3.Keypair.fromSecretKey(
+  new Uint8Array(
+    JSON.parse(fs.readFileSync(path.join(__dirname, "../relayer.json"), "utf8"))
+  )
+);
 let initialised = false;
-const rpc = createRpc(process.env.SOLANA_VALIDATOR_URL,process.env.SOLANA_COMPRESSION_API_ENDPOINT,process.env.SOLANA_PROVER_ENDPOINT);
+const rpc = createRpc(
+  process.env.SOLANA_VALIDATOR_URL,
+  process.env.SOLANA_COMPRESSION_API_ENDPOINT,
+  process.env.SOLANA_PROVER_ENDPOINT
+);
 
 async function init() {
   initialised = true;
@@ -33,34 +44,37 @@ async function init() {
 export async function solanaWithdraw(proofProc: any, depositEvent: any) {
   const stateTreeInfos = await rpc.getStateTreeInfos();
   const outputMerkleTree = stateTreeInfos[0].tree;
-  const defaultAddressTreeInfo = getDefaultAddressTreeInfo()
+  const defaultAddressTreeInfo = getDefaultAddressTreeInfo();
   const addressTree = defaultAddressTreeInfo.tree;
   const addressQueue = defaultAddressTreeInfo.queue;
 
   // process eth addresses
   depositEvent.tokenMint = bs58.encode(
     Buffer.from(depositEvent.tokenMint.replace("0x", ""), "hex")
-  )
+  );
   depositEvent.depositor = bs58.encode(
-  Buffer.from(depositEvent.depositor.replace("0x", ""), "hex")
-  )
+    Buffer.from(depositEvent.depositor.replace("0x", ""), "hex")
+  );
 
   // initWithdrawalProofAccount
-  const withdrawalProofTx = await program.methods.initWithdrawalProofAccount(
-    bn(depositEvent.depositId.toString()),
-    proofProc.proofA,
-    proofProc.proofB,
-    proofProc.proofC,
-    proofProc.publicSignals[0],
-    proofProc.publicSignals[1],
-  )
-  .accounts({
-    signer: relayerKp.publicKey
-  })
-  .signers([relayerKp])
-  .transaction();
+  const withdrawalProofTx = await program.methods
+    .initWithdrawalProofAccount(
+      bn(depositEvent.depositId.toString()),
+      proofProc.proofA,
+      proofProc.proofB,
+      proofProc.proofC,
+      proofProc.publicSignals[0],
+      proofProc.publicSignals[1]
+    )
+    .accounts({
+      signer: relayerKp.publicKey,
+    })
+    .signers([relayerKp])
+    .transaction();
 
-  withdrawalProofTx.recentBlockhash = (await rpc.getRecentBlockhash()).blockhash;
+  withdrawalProofTx.recentBlockhash = (
+    await rpc.getRecentBlockhash()
+  ).blockhash;
   withdrawalProofTx.sign(relayerKp);
 
   const sign = await rpc.sendTransaction(withdrawalProofTx, [relayerKp]);
@@ -72,11 +86,14 @@ export async function solanaWithdraw(proofProc: any, depositEvent: any) {
     [
       new TextEncoder().encode("withdrawal"),
       new anchor.web3.PublicKey(depositEvent.destChainAddr).toBytes(),
-      proofProc.publicSignals[0]
+      proofProc.publicSignals[0],
     ],
     new anchor.web3.PublicKey(program.idl.address)
   );
-  const withdrawalAccountAddress = deriveAddress(withdrawalRecordAccountSeed, addressTree);
+  const withdrawalAccountAddress = deriveAddress(
+    withdrawalRecordAccountSeed,
+    addressTree
+  );
   const proofRes = await rpc.getValidityProofV0(
     [],
     [
@@ -84,54 +101,57 @@ export async function solanaWithdraw(proofProc: any, depositEvent: any) {
         tree: addressTree,
         queue: addressQueue,
         address: bn(withdrawalAccountAddress.toBytes()),
-      }
+      },
     ]
   );
   const systemAccountConfig = SystemAccountMetaConfig.new(program.programId);
-  let remainingAccounts = PackedAccounts.newWithSystemAccounts(systemAccountConfig);
-  const addressMerkleTreePubkeyIndex = remainingAccounts.insertOrGet(addressTree);
+  let remainingAccounts =
+    PackedAccounts.newWithSystemAccounts(systemAccountConfig);
+  const addressMerkleTreePubkeyIndex =
+    remainingAccounts.insertOrGet(addressTree);
   const addressQueuePubkeyIndex = remainingAccounts.insertOrGet(addressQueue);
   const packedAddressMerkleContext = {
     rootIndex: proofRes.rootIndices[0],
     addressMerkleTreePubkeyIndex,
     addressQueuePubkeyIndex,
-  }
+  };
   const outputMerkleTreeIndex = remainingAccounts.insertOrGet(outputMerkleTree);
 
   let proof = {
-    0: proofRes.compressedProof
-  }
+    0: proofRes.compressedProof,
+  };
 
   const computeBudgetIx = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({
     units: 1000000,
   });
 
   const link = `${depositEvent.sourceChainId}_${depositEvent.tokenMint}_${depositEvent.destChainId}_${depositEvent.destChainMintAddr}`;
-  console.log('link', link);
-  const linkHash = require('crypto').createHash('sha256')
-  .update(link)
-  .digest('hex')
-  .slice(0, 16);
+  console.log("link", link);
+  const linkHash = require("crypto")
+    .createHash("sha256")
+    .update(link)
+    .digest("hex")
+    .slice(0, 16);
   console.log("linkHash", linkHash);
   let tx = await program.methods
-  .withdraw(
-    proof,
-    packedAddressMerkleContext,
-    outputMerkleTreeIndex,
-    bn(depositEvent.amount.toString()),
-    linkHash,
-    Buffer.from(proofProc.publicSignals[0])
-  )
-  .accounts({
-    relayer: relayerKp.publicKey,
-    recipient: depositEvent.destChainAddr,
-    mint: new anchor.web3.PublicKey(depositEvent.destChainMintAddr),
-    tokenProgram: TOKEN_PROGRAM_ID
-  })
-  .preInstructions([computeBudgetIx])
-  .remainingAccounts(remainingAccounts.toAccountMetas().remainingAccounts)
-  .signers([relayerKp])
-  .transaction();
+    .withdraw(
+      proof,
+      packedAddressMerkleContext,
+      outputMerkleTreeIndex,
+      bn(depositEvent.amount.toString()),
+      linkHash,
+      Buffer.from(proofProc.publicSignals[0])
+    )
+    .accounts({
+      relayer: relayerKp.publicKey,
+      recipient: depositEvent.destChainAddr,
+      mint: new anchor.web3.PublicKey(depositEvent.destChainMintAddr),
+      tokenProgram: TOKEN_PROGRAM_ID,
+    })
+    .preInstructions([computeBudgetIx])
+    .remainingAccounts(remainingAccounts.toAccountMetas().remainingAccounts)
+    .signers([relayerKp])
+    .transaction();
 
   tx.recentBlockhash = (await rpc.getRecentBlockhash()).blockhash;
   tx.sign(relayerKp);
@@ -139,24 +159,35 @@ export async function solanaWithdraw(proofProc: any, depositEvent: any) {
   const sig = await rpc.sendTransaction(tx, [relayerKp]);
   await rpc.confirmTransaction(sig, "finalized");
 
-  const withdrawalRecordAccount = await rpc.getCompressedAccount(bn(withdrawalAccountAddress.toBytes()));
+  const withdrawalRecordAccount = await rpc.getCompressedAccount(
+    bn(withdrawalAccountAddress.toBytes())
+  );
   const coder = new anchor.BorshCoder(idl as anchor.Idl);
   const withdrawalRecord = coder.types.decode(
     "WithdrawalRecordCompressedAccount",
-    withdrawalRecordAccount.data.data,
+    withdrawalRecordAccount.data.data
   );
 
   return withdrawalRecord;
 }
 
+program.addEventListener("depositEvent", async (event: { address: number[] }) => {
+  console.log("event - depositEvent", event);
+  const depositAddress = new anchor.web3.PublicKey(new Uint8Array(event.address));
+  await sleep(4000);
+  console.log("depositAddress", depositAddress);
+  await handleSolDeposit(depositAddress.toBase58());
+});
+
 class PackedAccounts {
   private preAccounts: anchor.web3.AccountMeta[] = [];
   private systemAccounts: anchor.web3.AccountMeta[] = [];
   private nextIndex: number = 0;
-  private map: Map<anchor.web3.PublicKey, [number, anchor.web3.AccountMeta]> = new Map();
+  private map: Map<anchor.web3.PublicKey, [number, anchor.web3.AccountMeta]> =
+    new Map();
 
   static newWithSystemAccounts(
-    config: SystemAccountMetaConfig,
+    config: SystemAccountMetaConfig
   ): PackedAccounts {
     const instance = new PackedAccounts();
     instance.addSystemAccounts(config);
@@ -175,19 +206,23 @@ class PackedAccounts {
     return this.insertOrGetConfig(pubkey, false, false);
   }
 
-  insertOrGetConfig(pubkey: anchor.web3.PublicKey, isSigner: boolean, isWritable: boolean) {
+  insertOrGetConfig(
+    pubkey: anchor.web3.PublicKey,
+    isSigner: boolean,
+    isWritable: boolean
+  ) {
     const entry = this.map.get(pubkey);
-    if(entry) return entry[0];
+    if (entry) return entry[0];
     const index = this.nextIndex++;
-    const meta: anchor.web3.AccountMeta = {pubkey, isSigner, isWritable};
-    this.map.set(pubkey, [index,meta]);
+    const meta: anchor.web3.AccountMeta = { pubkey, isSigner, isWritable };
+    this.map.set(pubkey, [index, meta]);
     return index;
   }
 
   private hashSetAccountsToMetas(): anchor.web3.AccountMeta[] {
     const entries = Array.from(this.map.entries());
-    entries.sort((a,b) => a[1][0] - b[1][0]);
-    return entries.map(([, [,meta]]) => meta);
+    entries.sort((a, b) => a[1][0] - b[1][0]);
+    return entries.map(([, [, meta]]) => meta);
   }
 
   private getOffsets(): [number, number] {
@@ -207,11 +242,11 @@ class PackedAccounts {
       remainingAccounts: [
         ...this.preAccounts,
         ...this.systemAccounts,
-        ...packed
+        ...packed,
       ],
       systemStart,
-      packedStart
-    }
+      packedStart,
+    };
   }
 }
 
@@ -225,29 +260,41 @@ function getLightSystemAccountMetas(
   )[0];
   const defaults = SystemAccountPubkeys.default();
   const metas: anchor.web3.AccountMeta[] = [
-    {pubkey: defaults.lightSystemProgram, isSigner: false, isWritable: false},
-    {pubkey: cpiSigner, isSigner: false, isWritable: false},
-    {pubkey: defaults.registeredProgramPda, isSigner: false, isWritable: false},
-    {pubkey: defaults.noopProgram, isSigner: false, isWritable: false},
-    {pubkey: defaults.accountCompressionAuthority, isSigner: false, isWritable: false},
-    {pubkey: defaults.accountCompressionProgram, isSigner: false, isWritable: false},
-    {pubkey: config.selfProgram, isSigner: false, isWritable: false},
+    { pubkey: defaults.lightSystemProgram, isSigner: false, isWritable: false },
+    { pubkey: cpiSigner, isSigner: false, isWritable: false },
+    {
+      pubkey: defaults.registeredProgramPda,
+      isSigner: false,
+      isWritable: false,
+    },
+    { pubkey: defaults.noopProgram, isSigner: false, isWritable: false },
+    {
+      pubkey: defaults.accountCompressionAuthority,
+      isSigner: false,
+      isWritable: false,
+    },
+    {
+      pubkey: defaults.accountCompressionProgram,
+      isSigner: false,
+      isWritable: false,
+    },
+    { pubkey: config.selfProgram, isSigner: false, isWritable: false },
   ];
 
-  if(config.solPoolPda) {
+  if (config.solPoolPda) {
     metas.push({
       pubkey: config.solPoolPda,
       isSigner: false,
       isWritable: true,
-    })
-  };
+    });
+  }
 
-  if(config.solCompressionRecipient) {
+  if (config.solCompressionRecipient) {
     metas.push({
       pubkey: config.solCompressionRecipient,
       isSigner: false,
-      isWritable: true
-    })
+      isWritable: true,
+    });
   }
 
   metas.push({
@@ -256,12 +303,12 @@ function getLightSystemAccountMetas(
     isWritable: false,
   });
 
-  if(config.cpiContext) {
+  if (config.cpiContext) {
     metas.push({
       pubkey: config.cpiContext,
       isSigner: false,
       isWritable: true,
-    })
+    });
   }
   return metas;
 }
@@ -282,15 +329,15 @@ class SystemAccountPubkeys {
     accountCompressionAuthority: anchor.web3.PublicKey,
     registeredProgramPda: anchor.web3.PublicKey,
     noopProgram: anchor.web3.PublicKey,
-    solPoolPda: anchor.web3.PublicKey,
+    solPoolPda: anchor.web3.PublicKey
   ) {
-    this.lightSystemProgram=lightSystemProgram;
-    this.systemProgram=systemProgram;
-    this.accountCompressionProgram=accountCompressionProgram;
-    this.accountCompressionAuthority=accountCompressionAuthority;
-    this.registeredProgramPda=registeredProgramPda;
-    this.noopProgram=noopProgram;
-    this.solPoolPda=solPoolPda;
+    this.lightSystemProgram = lightSystemProgram;
+    this.systemProgram = systemProgram;
+    this.accountCompressionProgram = accountCompressionProgram;
+    this.accountCompressionAuthority = accountCompressionAuthority;
+    this.registeredProgramPda = registeredProgramPda;
+    this.noopProgram = noopProgram;
+    this.solPoolPda = solPoolPda;
   }
 
   static default(): SystemAccountPubkeys {
@@ -301,23 +348,21 @@ class SystemAccountPubkeys {
       defaultStaticAccountsStruct().accountCompressionAuthority,
       defaultStaticAccountsStruct().registeredProgramPda,
       defaultStaticAccountsStruct().noopProgram,
-      anchor.web3.PublicKey.default,
-    )
+      anchor.web3.PublicKey.default
+    );
   }
-
 }
-
 class SystemAccountMetaConfig {
   selfProgram: anchor.web3.PublicKey;
   cpiContext?: anchor.web3.PublicKey;
   solCompressionRecipient?: anchor.web3.PublicKey;
   solPoolPda?: anchor.web3.PublicKey;
-  
+
   private constructor(
     selfProgram: anchor.web3.PublicKey,
     cpiContext?: anchor.web3.PublicKey,
     solCompressionRecipient?: anchor.web3.PublicKey,
-    solPoolPda?: anchor.web3.PublicKey,
+    solPoolPda?: anchor.web3.PublicKey
   ) {
     this.selfProgram = selfProgram;
     this.cpiContext = cpiContext;
@@ -331,7 +376,7 @@ class SystemAccountMetaConfig {
 
   static newWithCpiContext(
     selfProgram: anchor.web3.PublicKey,
-    cpiContext: anchor.web3.PublicKey,
+    cpiContext: anchor.web3.PublicKey
   ): SystemAccountMetaConfig {
     return new SystemAccountMetaConfig(selfProgram, cpiContext);
   }

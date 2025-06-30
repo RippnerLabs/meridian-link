@@ -6,6 +6,7 @@ import {
   MerkleContextWithMerkleProof,
   CompressedAccountWithMerkleContext,
   proverRequest,
+  sleep,
 } from "@lightprotocol/stateless.js";
 import bn from "bn.js";
 import BN from "bn.js";
@@ -233,7 +234,8 @@ async function withdrawFromEthChain(rawDepositRecord: any, proof: any) {
       depositId: rawDepositRecord.deposit_id.toString(),
     };
 
-    const tx = await contractWithSigner.processWithdrawal(depositRecord, proof);
+    // Cast to any to avoid type-mismatch complaints in the generated typings
+    const tx = await (contractWithSigner as any).processWithdrawal(depositRecord, proof);
     console.log("tx.hash:", tx.hash);
 
     const receipt = await tx.wait();
@@ -361,12 +363,10 @@ evmBridgeContract.on(
 );
 
 // @ts-ignore
-app.post("/api/generate-proof", async (req, res) => {
+export async function handleSolDeposit(address) {
   try {
-    const { address } = req.body;
-
     if (!address) {
-      return res.status(400).json({ error: "Address is required" });
+      throw new Error("no addr")
     }
 
     console.log("Processing address:", address);
@@ -380,9 +380,7 @@ app.post("/api/generate-proof", async (req, res) => {
     console.log("Account structure:", JSON.stringify(accountData));
 
     if (!accountData.data?.data) {
-      return res
-        .status(400)
-        .json({ error: "No data found in compressed account" });
+      throw new Error("no account data")
     }
 
     const coder = new anchor.BorshCoder(idl as anchor.Idl);
@@ -393,7 +391,27 @@ app.post("/api/generate-proof", async (req, res) => {
 
     console.log("Deposit record decoded:", rawDepositRecord);
 
-    const proofData = await rpc.getCompressedAccountProof(accountData.hash);
+    const maxRetries = 5;
+    let proofData;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        // 1) preferred: by leaf hash
+        proofData = await rpc.getCompressedAccountProof(accountData.hash);
+        break;
+      } catch (errHash) {
+        try {
+          // 2) fallback: by on-chain address (bn)
+          proofData = await rpc.getCompressedAccountProof(new bn(addressBytes));
+          break;
+        } catch (errAddr) {
+          if (attempt === maxRetries - 1) throw errAddr; // exhaust retries
+          console.warn(
+            `Proof fetch attempt ${attempt + 1} failed – retrying in 2s…`
+          );
+          await sleep(2000);
+        }
+      }
+    }
     console.log("Proof data retrieved", proofData);
 
     const circuitInputs = generateCircuitInputs(
@@ -411,20 +429,13 @@ app.post("/api/generate-proof", async (req, res) => {
 
     const withdrawRes = await withdrawFromEthChain(rawDepositRecord, proof);
 
-    res.json({
-      success: true,
-      proof,
-      circuitInputs,
-      withdrawRes,
-    });
+    console.log("all good")
+
   } catch (error) {
     console.error("Error generating proof:", error);
-    res.status(500).json({
-      error: "Failed to generate proof",
-      details: error instanceof Error ? error.message : "Unknown error",
-    });
+    console.log("not everyghing's good")
   }
-});
+};
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
