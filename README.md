@@ -2,6 +2,8 @@
 
 A production-ready cross-chain bridge that enables secure token transfers from Solana (using Light Protocol) to Ethereum using zero-knowledge proofs.
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/RippnerLabs/meridian-link)
+
 ## Architecture Overview
 
 ```
