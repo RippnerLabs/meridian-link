@@ -1,0 +1,2 @@
+setup:
+	npm run dev

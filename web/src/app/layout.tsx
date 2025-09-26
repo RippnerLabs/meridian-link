@@ -21,7 +21,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body className="antialiased font-sans">
-        <UnicornStudio projectId="ic8SR9XEydE5ANSP8W0B" asBackground />
+        {/* <UnicornStudio projectId="ic8SR9XEydE5ANSP8W0B" asBackground /> */}
         <EthereumProvider>
         <AppProviders>
           <AppLayout links={links}>{children}</AppLayout>

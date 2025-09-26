@@ -3,10 +3,12 @@
 import { useWallet } from "@solana/wallet-adapter-react";
 import { SidebarUI } from "../sidebar/sidebar-ui";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
-import { Zap, ArrowUpDown, Settings, ChevronDown, Info, Copy, ExternalLink, RefreshCw } from "lucide-react";
+import { Zap, ArrowUpDown, Settings, ChevronDown, Info, Copy, ExternalLink, RefreshCw, Wallet } from "lucide-react";
 import { WalletButton } from "../solana/solana-provider";
 import { EthereumWalletButton } from "../ethereum/ethereum-wallet-button";
 import { useBridgeDataAccess } from "./bridge-data-access";
+import useBridgeTokenBalance from "./use-bridge-token-balance";
+import { WalletConnectionDrawer } from "./wallet-connection-drawer";
 import { useState, useEffect } from "react";
 import {
   Select,
@@ -71,7 +73,7 @@ const CHAINS = [
 
 const TOKENS = [
   { 
-    value: "0x09635f643e140090a9a8dcd712ed6285858cebef", 
+    value: "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512", 
     label: "BridgeToken", 
     balance: "0", 
     icon: TokenUSDC,
@@ -185,8 +187,8 @@ function ChainSelector({
 }
 
 function MainContent() {
-  const [fromChain, setFromChain] = useState<string>("ethereum");
-  const [toChain, setToChain] = useState<string>("solana");
+  const [fromChain, setFromChain] = useState<"ethereum" | "solana">("ethereum");
+  const [toChain, setToChain] = useState<"ethereum" | "solana">("solana");
   const [token, setToken] = useState<string>("BridgeToken");
   const [amount, setAmount] = useState<string>("");
   const [customAddress, setCustomAddress] = useState<string>("");
@@ -201,12 +203,12 @@ function MainContent() {
     address: ethAddress, 
     chain: ethChain,
     isTransferring, 
-    tokenBalance,
-    isBalanceLoading,
-    balanceError,
     executeBridgeTransfer,
-    refetchBalance 
+    refetchBalance: refetchEthBalance 
   } = useBridgeDataAccess();
+
+  // Unified token balance based on selected fromChain
+  const { balance: unifiedBalance, isLoading: isBalanceLoading, error: balanceError, refetch } = useBridgeTokenBalance({ fromChain });
 
   // Solana wallet
   const solWallet = useWallet();
@@ -219,17 +221,17 @@ function MainContent() {
 
   // Refresh balance when wallet connects
   useEffect(() => {
-    if (isEthConnected && ethAddress) {
-      refetchBalance();
+    if (fromChain === 'ethereum' && isEthConnected && ethAddress) {
+      refetch();
     }
-  }, [isEthConnected, ethAddress, refetchBalance]);
+  }, [fromChain, isEthConnected, ethAddress, refetch]);
 
   // Update token balance display
   useEffect(() => {
-    if (selectedToken && tokenBalance) {
-      selectedToken.balance = parseFloat(tokenBalance.toString()).toFixed(4);
+    if (selectedToken && unifiedBalance) {
+      selectedToken.balance = parseFloat(unifiedBalance.toString()).toFixed(4);
     }
-  }, [tokenBalance, selectedToken]);
+  }, [unifiedBalance, selectedToken]);
 
   // 👀  monitor Solana balance when waiting for relay
   const solMonitor = useSolanaTransferMonitor({
@@ -307,12 +309,12 @@ function MainContent() {
         toast.info('Waiting for relayer to execute withdrawal on Ethereum…');
 
         // poll ERC20 balance until increased
-        const startBal = parseFloat(tokenBalance.toString());
+        const startBal = parseFloat(unifiedBalance.toString());
         let attempts = 0;
         const MAX_ATTEMPTS = 360; // ~30 min at 5s intervals
         while(attempts < MAX_ATTEMPTS) {
           await new Promise(r => setTimeout(r, 5000));
-          await refetchBalance();
+          await refetch();
           const newBal = parseFloat((selectedToken?.balance ?? '0'));
           if(newBal > startBal) {
             setCurrentStep(3);
@@ -342,25 +344,7 @@ function MainContent() {
 
   return (
     <TooltipProvider>
-      <div className="max-h-screen text-white">
-        {/* Settings Button */}
-        <div className="absolute top-4 right-4 z-10">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
-              >
-                <Settings className="h-5 w-5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Advanced Settings</p>
-            </TooltipContent>
-          </Tooltip>
-        </div>
-
+      <div className="min-h-screen text-white">
         <div className="flex items-center justify-center min-h-screen p-4">
           <div className="w-full max-w-md space-y-6">
             
@@ -371,77 +355,23 @@ function MainContent() {
                 {process.env.NEXT_PUBLIC_ETH_NETWORK === 'sepolia' ? 'Sepolia Testnet' : 'Hardhat Local'}
               </Badge>
             </div>
-
-            {/* Wallet Connection Section */}
-            <Card className="bg-gray-900/80 backdrop-blur border-gray-800 text-white shadow-2xl">
-              <CardHeader>
-                <CardTitle className="text-center text-lg">Connect Wallets</CardTitle>
-                <CardDescription className="text-center text-gray-400">
-                  Connect both Ethereum and Solana wallets to start bridging
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex flex-col space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-400">Ethereum (Source)</span>
-                    <EthereumWalletButton />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-400">Solana (Destination)</span>
-                    <WalletButton />
-                  </div>
-                </div>
-                
-                {/* Balance Display */}
-                {isEthConnected && (
-                  <div className="bg-gray-800/30 rounded-lg p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-400">BridgeToken Balance</span>
-                                             <div className="flex items-center space-x-2">
-                         <span className="text-sm font-medium text-white">
-                           {isBalanceLoading ? 'Loading...' : `${tokenBalance} BrTN`}
-                         </span>
-                         <Tooltip>
-                           <TooltipTrigger asChild>
-                             <Button
-                               variant="ghost"
-                               size="icon"
-                               onClick={() => refetchBalance()}
-                               disabled={isBalanceLoading}
-                               className="h-6 w-6 text-gray-400 hover:text-white hover:bg-gray-700/50 transition-colors disabled:opacity-50"
-                             >
-                               <RefreshCw className={`h-3 w-3 ${isBalanceLoading ? 'animate-spin' : ''}`} />
-                             </Button>
-                           </TooltipTrigger>
-                           <TooltipContent>
-                             <p>Refresh balance</p>
-                           </TooltipContent>
-                         </Tooltip>
-                       </div>
-                    </div>
-                                         <div className="text-xs text-gray-500">
-                       Address: {ethAddress?.slice(0, 6)}...{ethAddress?.slice(-4)}
-                     </div>
-                     {balanceError && (
-                       <div className="text-xs text-red-400">
-                         Error loading balance. Check if contracts are deployed.
-                       </div>
-                     )}
-                  </div>
-                )}
-                
-                {process.env.NEXT_PUBLIC_ETH_NETWORK === 'sepolia' && (
-                  <Alert className="bg-amber-900/20 border-amber-500/30">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertTitle>Sepolia Network</AlertTitle>
-                    <AlertDescription className="text-xs">
-                      Make sure to deploy contracts to Sepolia first and update the contract addresses in the code.
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </CardContent>
-            </Card>
             
+            {/* Connection Warning */}
+            {(!isEthConnected || !isSolanaConnected) && (
+              <Alert className="bg-blue-900/20 border-blue-500/30">
+                <Info className="h-4 w-4" />
+                <AlertTitle className="text-blue-400">Wallet Connection Required</AlertTitle>
+                <AlertDescription className="text-xs text-blue-300">
+                  {!isEthConnected && !isSolanaConnected 
+                    ? "Connect both Ethereum and Solana wallets to start bridging"
+                    : !isEthConnected 
+                    ? "Connect your Ethereum wallet to continue"
+                    : "Connect your Solana wallet to continue"
+                  }
+                </AlertDescription>
+              </Alert>
+            )}
+
             {/* Main Transfer Card */}
             <Card className="bg-gray-900/80 backdrop-blur border-gray-800 text-white shadow-2xl">
               <CardContent className="p-6 space-y-6">
@@ -450,7 +380,7 @@ function MainContent() {
                 <div className="space-y-4">
                   <ChainSelector 
                     value={fromChain} 
-                    onValueChange={setFromChain} 
+                    onValueChange={(v) => setFromChain(v as "ethereum" | "solana")} 
                     label="From" 
                   />
                   
@@ -469,8 +399,8 @@ function MainContent() {
                             variant="ghost"
                             size="sm"
                             className="text-blue-400 hover:text-blue-300 text-xs hover:bg-blue-900/20 transition-colors"
-                            onClick={() => setAmount(tokenBalance.toString())}
-                            disabled={!tokenBalance || parseFloat(tokenBalance.toString()) === 0}
+                            onClick={() => setAmount(unifiedBalance.toString())}
+                            disabled={!unifiedBalance || parseFloat(unifiedBalance.toString()) === 0}
                           >
                             Max
                           </Button>
@@ -487,7 +417,7 @@ function MainContent() {
                     onValueChange={setToken} 
                     label=""
                     showBalance={true}
-                    balance={tokenBalance.toString()}
+                    balance={unifiedBalance.toString()}
                   />
                 </div>
 
@@ -514,7 +444,7 @@ function MainContent() {
                 <div className="space-y-4">
                   <ChainSelector 
                     value={toChain} 
-                    onValueChange={setToChain} 
+                    onValueChange={(v) => setToChain(v as "ethereum" | "solana")} 
                     label="To" 
                   />
                   
@@ -602,21 +532,33 @@ function MainContent() {
                 )}
 
                 {/* Transfer Button */}
-                <Button
-                  onClick={startTransfer}
-                  disabled={!amount || isTransferring || !isEthConnected || !isSolanaConnected}
-                  className="w-full bg-gray-600 hover:bg-gray-500 text-white h-12 text-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isTransferring 
-                    ? "Processing..." 
-                    : !isEthConnected 
-                    ? "Connect Ethereum Wallet"
-                    : !isSolanaConnected
-                    ? "Connect Solana Wallet"
-                    : !amount 
-                    ? "Enter Amount" 
-                    : "Transfer"}
-                </Button>
+                {(!isEthConnected || !isSolanaConnected) ? (
+                  <WalletConnectionDrawer>
+                    <Button
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white h-12 text-lg font-medium transition-all duration-200"
+                    >
+                      <Wallet className="h-5 w-5 mr-2" />
+                      {!isEthConnected && !isSolanaConnected 
+                        ? "Connect Wallets"
+                        : !isEthConnected 
+                        ? "Connect Ethereum Wallet"
+                        : "Connect Solana Wallet"
+                      }
+                    </Button>
+                  </WalletConnectionDrawer>
+                ) : (
+                  <Button
+                    onClick={startTransfer}
+                    disabled={!amount || isTransferring}
+                    className="w-full bg-gray-600 hover:bg-gray-500 text-white h-12 text-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isTransferring 
+                      ? "Processing..." 
+                      : !amount 
+                      ? "Enter Amount" 
+                      : "Transfer"}
+                  </Button>
+                )}
 
                 {/* Progress Bar */}
                 {isTransferring && (

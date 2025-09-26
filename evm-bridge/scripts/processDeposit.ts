@@ -1,5 +1,5 @@
 import hre from "hardhat";
-import addressBook from "../../integration-tests/addressBook.json";
+import addressBook from "../../config/localhost_address_book.json";
 
 async function main() {
     const [deployer,] = await hre.viem.getWalletClients();
@@ -13,7 +13,7 @@ async function main() {
     let bridgeBalance = await token.read.balanceOf([addressBook.bridgeSmartContractAddress as `0x${string}`]);
     console.log("bridgeBalance", bridgeBalance);
 
-    const depositAmount = 100n;
+    const depositAmount = 50n;
     const deployerApprove = await token.write.approve([
         addressBook.bridgeSmartContractAddress as `0x${string}`,
         depositAmount
@@ -24,7 +24,7 @@ async function main() {
         31337,
         1,
         "7fD1uH15XByFTnGjDZr5tFQjxtaWBZUYpecXeesr1jom",
-        "7fD1uH15XByFTnGjDZr5tFQjxtaWBZUYpecXeesr1jom",
+        "FANiM4Ea1MHrDAf6rYmnDxAMVrFQAaqHixENKqTuc36T",
         addressBook.tokenSmartContractAddress as `0x${string}`,
         depositAmount
     ]);

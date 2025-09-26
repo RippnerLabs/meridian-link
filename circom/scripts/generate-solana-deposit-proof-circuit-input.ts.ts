@@ -54,6 +54,7 @@ function computePathIndices(leafIndex: number, levels: number): number[] {
     const pathIndices=[];
     let index = leafIndex;
     for(let i=0;i<levels;i++) {
+        // @ts-ignore
         pathIndices.push(index % 2);
         index = Math.floor(index / 2);
     }
@@ -68,11 +69,12 @@ function padArray(arr: string[], targetLength: number): string[] {
     return padded.slice(0, targetLength);
 }
 
+
 function generateCircuitInput(): any {
     try {
-        const proofData:MerkleContextWithMerkleProof = JSON.parse(fs.readFileSync("../proof.json", 'utf8'))
-        const accountData: CompressedAccountWithMerkleContext = JSON.parse(fs.readFileSync("../account.json", "utf8"));
-        const recordData: DepositRecord = JSON.parse(fs.readFileSync("../record.json", "utf8"));
+        const proofData:MerkleContextWithMerkleProof = JSON.parse(fs.readFileSync(path.join(configDir, "./sol_deposit_proof.json"), 'utf8'))
+        const accountData: CompressedAccountWithMerkleContext = JSON.parse(fs.readFileSync(path.join(configDir, "./sol_deposit_account.json"), "utf8"));
+        const recordData: DepositRecord = JSON.parse(fs.readFileSync(path.join(configDir, "./sol_deposit_record.json"), "utf8"));
         console.log("proofData.root", proofData.root);
         const stateRoot = hexToField(proofData.root);
         const amount = recordData.amount;
@@ -94,6 +96,7 @@ function generateCircuitInput(): any {
         const timestamp = parseInt(recordData.timestamp, 16).toString();
         const depositId = recordData.deposit_id;
 
+        // @ts-ignore
         const dataHash = hexToField(accountData.data.dataHash.map(
             b => b.toString(16).padStart(2, '0')
         ).join(''));
@@ -125,12 +128,12 @@ function generateCircuitInput(): any {
     }
 }
 
-const integrationTestsDir = path.join(__dirname, "../../integration-tests");
+const configDir = path.join(__dirname, "../../config");
 
 function writeInputToFile() {
     try {
         const input = generateCircuitInput();
-        fs.writeFileSync(path.join(integrationTestsDir, "input.json"), JSON.stringify(input, null, 2));
+        fs.writeFileSync(path.join(configDir, "sol_deposit_proof_circom_circuit_input.json"), JSON.stringify(input, null, 2));
     } catch (err) {
         throw new Error(err);
     }

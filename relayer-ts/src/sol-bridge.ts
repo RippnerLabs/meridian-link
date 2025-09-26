@@ -56,6 +56,7 @@ export async function solanaWithdraw(proofProc: any, depositEvent: any) {
     Buffer.from(depositEvent.depositor.replace("0x", ""), "hex")
   );
 
+
   // initWithdrawalProofAccount
   const withdrawalProofTx = await program.methods
     .initWithdrawalProofAccount(
@@ -68,6 +69,7 @@ export async function solanaWithdraw(proofProc: any, depositEvent: any) {
     )
     .accounts({
       signer: relayerKp.publicKey,
+      
     })
     .signers([relayerKp])
     .transaction();
@@ -78,8 +80,9 @@ export async function solanaWithdraw(proofProc: any, depositEvent: any) {
   withdrawalProofTx.sign(relayerKp);
 
   const sign = await rpc.sendTransaction(withdrawalProofTx, [relayerKp]);
-  await rpc.confirmTransaction(sign);
   console.log("initWithdrawalProofAccount instr sign:", sign);
+  await rpc.confirmTransaction(sign);
+  console.log("1");
 
   // withdraw instruction
   const withdrawalRecordAccountSeed = deriveAddressSeed(
@@ -104,6 +107,7 @@ export async function solanaWithdraw(proofProc: any, depositEvent: any) {
       },
     ]
   );
+  console.log("1");
   const systemAccountConfig = SystemAccountMetaConfig.new(program.programId);
   let remainingAccounts =
     PackedAccounts.newWithSystemAccounts(systemAccountConfig);

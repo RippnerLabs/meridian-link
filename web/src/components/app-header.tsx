@@ -8,6 +8,8 @@ import { Menu, X, Settings, ChevronDown } from 'lucide-react'
 import { ThemeSelect } from '@/components/theme-select'
 import { ClusterUiSelect } from './cluster/cluster-ui'
 import { WalletButton } from '@/components/solana/solana-provider'
+import { WalletConnectionDrawer } from '@/components/bridge/wallet-connection-drawer'
+import { Wallet } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   DropdownMenu,
@@ -113,7 +115,15 @@ export function AppHeader({ links = [] }: { links: { label: string; path: string
             
             <div className="h-6 w-px bg-white/20" />
             
-            <WalletButton />
+            <WalletConnectionDrawer>
+              <Button 
+                variant="outline" 
+                className="bg-white/5 border-white/10 text-white hover:bg-white/10 transition-colors"
+              >
+                <Wallet className="h-4 w-4 mr-2" />
+                Connect Wallet
+              </Button>
+            </WalletConnectionDrawer>
           </div>
 
           {/* Mobile Menu Button */}
@@ -153,7 +163,15 @@ export function AppHeader({ links = [] }: { links: { label: string; path: string
               ))}
               
               <div className="pt-6 space-y-4 border-t border-white/10 mt-6">
-                <WalletButton />
+                <WalletConnectionDrawer>
+                  <Button 
+                    variant="outline" 
+                    className="w-full bg-white/5 border-white/10 text-white hover:bg-white/10 transition-colors"
+                  >
+                    <Wallet className="h-4 w-4 mr-2" />
+                    Connect Wallet
+                  </Button>
+                </WalletConnectionDrawer>
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-white">Settings</span>
                   <Button

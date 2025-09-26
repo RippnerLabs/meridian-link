@@ -14,17 +14,15 @@ import {
   deriveAddress,
   deriveAddressSeed,
   LightSystemProgram,
-  padOutputStateMerkleTrees,
   Rpc,
   sleep,
 } from "@lightprotocol/stateless.js";
 import bs58 from "bs58";
 
 const path = require("path");
-const os = require("os");
 require("dotenv").config();
 
-const anchorWalletPath = path.join(os.homedir(), ".config/solana/id.json");
+const anchorWalletPath = path.join(__dirname, "../../keys/signer.json");
 process.env.ANCHOR_WALLET = anchorWalletPath;
 
 const withdrawalNullifier = [11,3,119,82,135,205,250,45,160,213,133,169,79,212,130,204,137,128,91,19,82,142,63,56,50,224,60,189,43,8,50,4];
@@ -116,6 +114,10 @@ describe("test-anchor", () => {
     await initTokenBridgeCall(rpc, program, signer, dest_chain_id, dest_chain_mint_addr, SOLANA_CHAIN_ID, mint.toString());
 
     await initTokenBridgeCall(rpc, program, signer, SOLANA_CHAIN_ID, mint.toString(), dest_chain_id, dest_chain_mint_addr);
+
+    // console.log solana mint addr and eth mint addr
+    console.log("solana mint addr", mint.toString());
+    console.log("eth mint addr", dest_chain_mint_addr);
 
     await CreateDepositRecordCompressedAccount(
       rpc,
@@ -393,7 +395,7 @@ async function CreateDepositRecordCompressedAccount(
     // console.log("des depositRecord ", depositRecord);
     const accProof = await rpc.getCompressedAccountProof(depositRecordAccount.hash);
 
-    const integrationTestsDir = path.join(__dirname, "../../config");
+    const configDir = path.join(__dirname, "../../config");
     // Convert BN amount to decimal string before writing to record.json
     const recordForJson = {
       ...depositRecord,
@@ -401,9 +403,9 @@ async function CreateDepositRecordCompressedAccount(
       timestamp: depositRecord.timestamp.toString(),
       deposit_id: depositRecord.deposit_id.toString(),
     };
-    fs.writeFileSync(path.join(integrationTestsDir, "sol_deposit_record.json"), JSON.stringify(recordForJson));
-    fs.writeFileSync(path.join(integrationTestsDir, "sol_deposit_proof.json"), JSON.stringify(accProof));
-    fs.writeFileSync(path.join(integrationTestsDir, "sol_deposit_account.json"), JSON.stringify(depositRecordAccount));
+    fs.writeFileSync(path.join(configDir, "sol_deposit_record.json"), JSON.stringify(recordForJson));
+    fs.writeFileSync(path.join(configDir, "sol_deposit_proof.json"), JSON.stringify(accProof));
+    fs.writeFileSync(path.join(configDir, "sol_deposit_account.json"), JSON.stringify(depositRecordAccount));
   }
 }
 
@@ -549,16 +551,16 @@ async function CreateWithdrawalRecordCompressedAccount(
   // console.log("des depositRecord ", depositRecord);
   const accProof = await rpc.getCompressedAccountProof(withdrawalRecordAccount.hash);
 
-  const integrationTestsDir = path.join(__dirname, "../../integration-tests");
+  const configDir = path.join(__dirname, "../../integration-tests");
   // Convert BN amount to decimal string before writing to record.json
   const recordForJson = {
     ...depositRecord,
     amount: depositRecord.amount.toString(),
     timestamp: depositRecord.timestamp.toString(),
   };
-  fs.writeFileSync(path.join(integrationTestsDir, "withdrawal_record.json"), JSON.stringify(recordForJson));
-  fs.writeFileSync(path.join(integrationTestsDir, "withdrawal_proof.json"), JSON.stringify(accProof));
-  fs.writeFileSync(path.join(integrationTestsDir, "withdrawal_account.json"), JSON.stringify(withdrawalRecordAccount));
+  fs.writeFileSync(path.join(configDir, "withdrawal_record.json"), JSON.stringify(recordForJson));
+  fs.writeFileSync(path.join(configDir, "withdrawal_proof.json"), JSON.stringify(accProof));
+  fs.writeFileSync(path.join(configDir, "withdrawal_account.json"), JSON.stringify(withdrawalRecordAccount));
 
 
   const withdrawKpAta2 = await getOrCreateAssociatedTokenAccount(

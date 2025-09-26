@@ -14,6 +14,7 @@
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
+    "esrun": "^3.2.30",
     "@nomicfoundation/hardhat-ignition": "^0.15.11",
     "@nomicfoundation/hardhat-ignition-viem": "^0.15.11",
     "@nomicfoundation/hardhat-network-helpers": "^1.0.12",
