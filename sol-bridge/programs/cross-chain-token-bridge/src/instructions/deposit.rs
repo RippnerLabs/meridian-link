@@ -51,7 +51,8 @@ pub struct DepositContext<'info> {
     pub token_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
     #[account(
-        mut,
+        init_if_needed,
+        payer = signer,
         associated_token::mint = mint,
         associated_token::authority = signer,
         // associated_token::token_program = token_program,

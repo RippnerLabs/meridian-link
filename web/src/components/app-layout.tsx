@@ -19,9 +19,9 @@ export function AppLayout({
       <div className="flex flex-col h-screen">
         <AppHeader links={links} />
         <main className="flex-grow">
-          <ClusterChecker>
+          {/* <ClusterChecker>
             <AccountChecker />
-          </ClusterChecker>
+          </ClusterChecker> */}
           {children}
         </main>
       </div>

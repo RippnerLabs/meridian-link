@@ -73,7 +73,7 @@ const CHAINS = [
 
 const TOKENS = [
   { 
-    value: "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512", 
+    value: process.env.NEXT_PUBLIC_ETH_TOKEN_SMART_CONTRACT_ADDRESS || "", 
     label: "BridgeToken", 
     balance: "0", 
     icon: TokenUSDC,
@@ -124,11 +124,11 @@ function TokenSelector({
                     />
                     <span>{token.label}</span>
                   </div>
-                  {showBalance && (
+                  {/* {showBalance && (
                     <span className="text-gray-400 text-xs ml-2">
                       {token.balance}
                     </span>
-                  )}
+                  )} */}
                 </div>
               </SelectItem>
             );
@@ -189,7 +189,7 @@ function ChainSelector({
 function MainContent() {
   const [fromChain, setFromChain] = useState<"ethereum" | "solana">("ethereum");
   const [toChain, setToChain] = useState<"ethereum" | "solana">("solana");
-  const [token, setToken] = useState<string>("BridgeToken");
+  const [token, setToken] = useState<string>(TOKENS[0]?.value || "");
   const [amount, setAmount] = useState<string>("");
   const [customAddress, setCustomAddress] = useState<string>("");
   const [showCustomAddress, setShowCustomAddress] = useState(false);
@@ -208,13 +208,14 @@ function MainContent() {
   } = useBridgeDataAccess();
 
   // Unified token balance based on selected fromChain
-  const { balance: unifiedBalance, isLoading: isBalanceLoading, error: balanceError, refetch } = useBridgeTokenBalance({ fromChain });
+  const selectedToken = TOKENS.find(t => t.value === token);
+  const selectedTokenAddress = selectedToken?.value || "";
+  const { balance: unifiedBalance, isLoading: isBalanceLoading, error: balanceError, refetch } = useBridgeTokenBalance({ fromChain, token: fromChain === 'ethereum' ? selectedTokenAddress : (process.env.NEXT_PUBLIC_SOLANA_BRIDGE_TOKEN_MINT_ADDR || "") });
 
   // Solana wallet
   const solWallet = useWallet();
   const { connected: isSolanaConnected, publicKey: solanaAddress } = solWallet;
 
-  const selectedToken = TOKENS.find(t => t.value === token);
   const selectedFromChain = CHAINS.find(c => c.value === fromChain);
   const selectedToChain = CHAINS.find(c => c.value === toChain);
   const estimatedValue = amount ? (parseFloat(amount) * 1.0001).toFixed(4) : "0.00";

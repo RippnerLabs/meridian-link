@@ -11,16 +11,16 @@ import SolanaEVMBridgeABI from '@/contracts/SolanaEVMBridge.json';
 
 // Smart contract addresses
 const LOCALHOST_ADDRESSES = {
-  verifierSmartContractAddress: process.env.ETH_VERIFIER_SMART_CONTRACT_ADDRESS,
-  bridgeSmartContractAddress:  process.env.ETH_BRIDGE_SMART_CONTRACT_ADDRESS,
-  tokenSmartContractAddress:   process.env.ETH_TOKEN_SMART_CONTRACT_ADDRESS,
+  verifierSmartContractAddress: process.env.NEXT_ETH_VERIFIER_SMART_CONTRACT_ADDRESS,
+  bridgeSmartContractAddress:  process.env.NEXT_ETH_BRIDGE_SMART_CONTRACT_ADDRESS,
+  tokenSmartContractAddress:   process.env.NEXT_ETH_TOKEN_SMART_CONTRACT_ADDRESS,
 };
 
 // Sepolia addresses (to be updated when deployed)
 const SEPOLIA_ADDRESSES = {
-  verifierSmartContractAddress:  process.env.ETH_VERIFIER_SMART_CONTRACT_ADDRESS,
-  bridgeSmartContractAddress: process.env.ETH_BRIDGE_SMART_CONTRACT_ADDRESS,
-  tokenSmartContractAddress: process.env.ETH_TOKEN_SMART_CONTRACT_ADDRESS,
+  verifierSmartContractAddress:  process.env.NEXT_ETH_VERIFIER_SMART_CONTRACT_ADDRESS,
+  bridgeSmartContractAddress: process.env.NEXT_ETH_BRIDGE_SMART_CONTRACT_ADDRESS,
+  tokenSmartContractAddress: process.env.NEXT_ETH_TOKEN_SMART_CONTRACT_ADDRESS,
 };
 
 // Get addresses based on current network

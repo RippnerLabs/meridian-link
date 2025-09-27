@@ -28,7 +28,7 @@ async function createProof(): Promise<any> {
     const {proof, publicSignals} = await snarkjs.groth16.fullProve(
         circuitInputs,
         path.join(integrationTestsDir, "../circom/solDepositProof_js/solDepositProof.wasm"),
-        path.join(integrationTestsDir, "../circom/solDepositProof_js/1_0000.zkey"),
+        path.join(integrationTestsDir, "../circom/1_0000.zkey"),
     );
     const calldataBlob = await snarkjs.groth16.exportSolidityCallData(proof, publicSignals);
 

@@ -163,7 +163,7 @@ async function createProof(circuitInputs: CircuitInputs): Promise<any> {
   );
   const zkeyPath = path.join(
     __dirname,
-    "../../circom/solDepositProof_js/1_0000.zkey"
+    "../../circom/1_0000.zkey"
   );
 
   const { proof, publicSignals: circomPublicSignals } =

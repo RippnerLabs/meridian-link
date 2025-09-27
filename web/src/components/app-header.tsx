@@ -31,6 +31,7 @@ export function AppHeader({ links = [] }: { links: { label: string; path: string
     { label: 'Transfer', path: '/bridge', badge: null },
     { label: 'Earn', path: '/earn', badge: 'NEW' },
     { label: 'Stake', path: '/stake', badge: null },
+    { label: 'Faucet', path: '/faucet', badge: null },
     { label: 'Overview', path: '/overview', badge: null },
   ]
 

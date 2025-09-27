@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { getAccount, getAssociatedTokenAddress, getMint, TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { useBridgeDataAccess } from "./bridge-data-access";
+import { useAccount, useReadContract } from "wagmi";
+import BridgeTokenABI from "@/contracts/BridgeToken.json";
 
 function formatUnitsLike(value: bigint, decimals: number): string {
   if (decimals === 0) return value.toString();
@@ -18,11 +19,32 @@ function formatUnitsLike(value: bigint, decimals: number): string {
   return negative ? `-${result}` : result;
 }
 
-export function useBridgeTokenBalance({ fromChain }: { fromChain: "ethereum" | "solana" }) {
+export function useBridgeTokenBalance({ fromChain, token }: { fromChain: "ethereum" | "solana"; token: string }) {
   const isEth = fromChain === "ethereum";
+  const { address: ethAddress } = useAccount();
 
-  // Ethereum side reuses existing data-access (wagmi-backed)
-  const { tokenBalance: ethBalance, isBalanceLoading: ethLoading, balanceError: ethError, refetchBalance: refetchEth } = useBridgeDataAccess();
+  // Ethereum side – read directly from selected token
+  const tokenAddressEth = (token?.startsWith("0x") ? token : "") as `0x${string}` | "";
+  const { data: ethRawBalance, refetch: refetchEthBal, isLoading: ethLoading, error: ethError } = useReadContract({
+    address: tokenAddressEth || undefined,
+    abi: BridgeTokenABI.abi as any,
+    functionName: "balanceOf",
+    args: ethAddress && tokenAddressEth ? [ethAddress] : undefined,
+    query: {
+      enabled: !!ethAddress && !!tokenAddressEth,
+      refetchInterval: 10000,
+    },
+  } as any);
+  const { data: ethDecimals } = useReadContract({
+    address: tokenAddressEth || undefined,
+    abi: BridgeTokenABI.abi as any,
+    functionName: "decimals",
+    args: undefined,
+    query: {
+      enabled: !!tokenAddressEth,
+      refetchInterval: 60000,
+    },
+  } as any);
 
   // Solana side
   const { publicKey, connected } = useWallet();
@@ -31,7 +53,7 @@ export function useBridgeTokenBalance({ fromChain }: { fromChain: "ethereum" | "
   const [solError, setSolError] = useState<string | null>(null);
 
   const rpcEndpoint = process.env.NEXT_PUBLIC_SOLANA_RPC_ENDPOINT || "http://127.0.0.1:8899";
-  const mintAddress = process.env.NEXT_PUBLIC_SOLANA_BRIDGE_TOKEN_MINT_ADDR || "";
+  const mintAddress = isEth ? "" : (token || "");
 
   const connection = useMemo(() => new Connection(rpcEndpoint, "confirmed"), [rpcEndpoint]);
 
@@ -43,7 +65,7 @@ export function useBridgeTokenBalance({ fromChain }: { fromChain: "ethereum" | "
     try {
       setSolLoading(true);
       setSolError(null);
-
+      
       const mintPk = new PublicKey(mintAddress);
       const ata = await getAssociatedTokenAddress(mintPk, publicKey, false, TOKEN_PROGRAM_ID, undefined);
 
@@ -52,7 +74,6 @@ export function useBridgeTokenBalance({ fromChain }: { fromChain: "ethereum" | "
         getAccount(connection, ata, undefined, TOKEN_PROGRAM_ID),
         getMint(connection, mintPk),
       ]);
-
       const amount = BigInt(acc.amount.toString());
       const decimals = mintInfo.decimals ?? 0;
       const human = formatUnitsLike(amount, decimals);
@@ -79,14 +100,14 @@ export function useBridgeTokenBalance({ fromChain }: { fromChain: "ethereum" | "
 
   const refetch = useCallback(() => {
     if (isEth) {
-      refetchEth();
+      refetchEthBal();
     } else {
       fetchSolBalance();
     }
-  }, [isEth, refetchEth, fetchSolBalance]);
+  }, [isEth, refetchEthBal, fetchSolBalance]);
 
   return {
-    balance: isEth ? (ethBalance || "0") : solBalance,
+    balance: isEth ? (formatUnitsLike((ethRawBalance as bigint) || 0n, typeof ethDecimals === "number" ? ethDecimals : Number(ethDecimals || 18))) : solBalance,
     isLoading: isEth ? !!ethLoading : solLoading,
     error: isEth ? (ethError as any)?.message || null : solError,
     refetch,

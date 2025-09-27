@@ -66,13 +66,13 @@ export async function deploy() {
   
   fs.writeFileSync(path.join(configDir, `${hre.network.name}_address_book.json`), JSON.stringify(addressBook, null, 2))
 
-  //  update web/.env.local with ETH_VERIFIER_SMART_CONTRACT_ADDRESS, ETH_BRIDGE_SMART_CONTRACT_ADDRESS, ETH_TOKEN_SMART_CONTRACT_ADDRESS
+  //  update web/.env.local with public NEXT_PUBLIC_* keys for the frontend
   const envPath = path.join(__dirname, "../../web/.env.local");
 
   const envUpdates: Record<string, string> = {
-    ETH_VERIFIER_SMART_CONTRACT_ADDRESS: verifier.address.toString(),
-    ETH_BRIDGE_SMART_CONTRACT_ADDRESS: bridge.address.toString(),
-    ETH_TOKEN_SMART_CONTRACT_ADDRESS: token.address.toString(),
+    NEXT_PUBLIC_ETH_VERIFIER_SMART_CONTRACT_ADDRESS: verifier.address.toString(),
+    NEXT_PUBLIC_ETH_BRIDGE_SMART_CONTRACT_ADDRESS: bridge.address.toString(),
+    NEXT_PUBLIC_ETH_TOKEN_SMART_CONTRACT_ADDRESS: token.address.toString(),
   };
 
   function updateEnvFile(filePath: string, updates: Record<string, string>) {
