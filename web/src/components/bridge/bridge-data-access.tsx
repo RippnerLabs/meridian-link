@@ -9,18 +9,17 @@ import { toast } from 'sonner';
 import BridgeTokenABI from '@/contracts/BridgeToken.json';
 import SolanaEVMBridgeABI from '@/contracts/SolanaEVMBridge.json';
 
-// Smart contract addresses
 const LOCALHOST_ADDRESSES = {
-  verifierSmartContractAddress: process.env.NEXT_ETH_VERIFIER_SMART_CONTRACT_ADDRESS,
-  bridgeSmartContractAddress:  process.env.NEXT_ETH_BRIDGE_SMART_CONTRACT_ADDRESS,
-  tokenSmartContractAddress:   process.env.NEXT_ETH_TOKEN_SMART_CONTRACT_ADDRESS,
+  verifierSmartContractAddress: process.env.NEXT_PUBLIC_ETH_VERIFIER_SMART_CONTRACT_ADDRESS,
+  bridgeSmartContractAddress:  process.env.NEXT_PUBLIC_ETH_BRIDGE_SMART_CONTRACT_ADDRESS,
+  tokenSmartContractAddress:   process.env.NEXT_PUBLIC_ETH_TOKEN_SMART_CONTRACT_ADDRESS,
 };
 
 // Sepolia addresses (to be updated when deployed)
 const SEPOLIA_ADDRESSES = {
-  verifierSmartContractAddress:  process.env.NEXT_ETH_VERIFIER_SMART_CONTRACT_ADDRESS,
-  bridgeSmartContractAddress: process.env.NEXT_ETH_BRIDGE_SMART_CONTRACT_ADDRESS,
-  tokenSmartContractAddress: process.env.NEXT_ETH_TOKEN_SMART_CONTRACT_ADDRESS,
+  verifierSmartContractAddress:  process.env.NEXT_PUBLIC_ETH_VERIFIER_SMART_CONTRACT_ADDRESS,
+  bridgeSmartContractAddress: process.env.NEXT_PUBLIC_ETH_BRIDGE_SMART_CONTRACT_ADDRESS,
+  tokenSmartContractAddress: process.env.NEXT_PUBLIC_ETH_TOKEN_SMART_CONTRACT_ADDRESS,
 };
 
 // Get addresses based on current network
@@ -86,6 +85,10 @@ export function useBridgeDataAccess() {
       toast.error('Please connect your Ethereum wallet');
       return null;
     }
+    if (!contractAddresses.tokenSmartContractAddress) {
+      toast.error('Token address is not configured');
+      return null;
+    }
 
     try {
       setCurrentStep(1);
@@ -110,6 +113,10 @@ export function useBridgeDataAccess() {
   const depositToBridge = async (params: BridgeTransferParams): Promise<`0x${string}` | null> => {
     if (!isConnected || !address) {
       toast.error('Please connect your Ethereum wallet');
+      return null;
+    }
+    if (!contractAddresses.bridgeSmartContractAddress || !contractAddresses.tokenSmartContractAddress) {
+      toast.error('Bridge or token address is not configured');
       return null;
     }
 

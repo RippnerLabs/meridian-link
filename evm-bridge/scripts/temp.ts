@@ -6,29 +6,23 @@ export async function Test() {
   const [deployer] = await hre.viem.getWalletClients();
   const publicClient = await hre.viem.getPublicClient();
 
-  const addressBookPath = path.join(
-    __dirname,
-    "../../config",
-    `${hre.network.name}_address_book.json`
-  );
-  const addressBook = JSON.parse(fs.readFileSync(addressBookPath, "utf-8"));
-  const tokenAddress = addressBook.tokenSmartContractAddress as `0x${string}`;
-
-  const code = await publicClient.getBytecode({ address: tokenAddress });
-  if (!code) {
-    console.error("No contract code found at token address on", hre.network.name);
-    console.error("Address from address book:", tokenAddress);
-    console.error("Hint: re-run deploy or update address book for this network.");
-    process.exit(1);
-  }
-
-  const brtn = await hre.viem.getContractAt("BridgeToken", tokenAddress);
-
-  const tokenBalance = await brtn.read.balanceOf([deployer.account.address]);
-  console.log("network:", hre.network.name);
-  console.log("token:", tokenAddress);
-  console.log("user:", deployer.account.address);
-  console.log("tokenBalance:", tokenBalance);
+  // transfer 10 eth to 0xFe65522CFB8796925132a0159EDb3A8C2153B297
+  const transferAmount = BigInt("10000000000000000000"); // 10 eth
+  const hash = await deployer.sendTransaction({
+    to: "0xFe65522CFB8796925132a0159EDb3A8C2153B297",
+    value: transferAmount
+  });
+  const receipt = await publicClient.waitForTransactionReceipt({hash});
+  console.log("receipt", receipt);
+  console.log("transferAmount", transferAmount);
+  console.log("hash", hash);
+  console.log("deployer", deployer.account.address);
+  console.log("publicClient", await publicClient.getBalance({address: deployer.account.address}));
+  console.log("receipt", receipt);
+  console.log("transferAmount", transferAmount);
+  console.log("hash", hash);
+  console.log("deployer", deployer.account.address);
+  console.log("publicClient", await publicClient.getBalance({address: deployer.account.address}));
 }
 
 Test()
