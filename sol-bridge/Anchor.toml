@@ -4,15 +4,18 @@
 resolution = true
 skip-lint = false
 
+[programs.devnet]
+cross_chain_token_bridge = "9He8p6qdDUbHu6HLwmQhHfzA4cfrd5uc2udYGHcabbHv"
+
 [programs.localnet]
 cross_chain_token_bridge = "82ZuVtSrqVWfmuxH34R9ASdwLJ6TTNxGyBeBXbeZMycP"
 
 [registry]
 url = "https://api.apr.dev"
 
+[provider]
+cluster = "devnet"
+wallet = "../keys/solana-admin.json"
+
 [scripts]
 test = "ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
-
-[provider]
-cluster = "localnet"
-wallet = "../keys/signer.json"

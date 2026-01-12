@@ -147,20 +147,20 @@ describe("test-anchor", () => {
     const withdrawalRecordAddress = deriveAddress(withdrawalRecordSeed, addressTree);
     console.log("withdrawalRecordAddress", withdrawalRecordAddress);
 
-    // await CreateWithdrawalRecordCompressedAccount(
-    //   rpc,
-    //   addressTree,
-    //   addressQueue,
-    //   withdrawalRecordAddress,
-    //   program,
-    //   outputMerkleTree,
-    //   signer,
-    //   mint,
-    //   dest_chain_id,
-    //   dest_chain_mint_addr,
-    //   SOLANA_CHAIN_ID,
-    //   mint.toString(),
-    // );
+    await CreateWithdrawalRecordCompressedAccount(
+      rpc,
+      addressTree,
+      addressQueue,
+      withdrawalRecordAddress,
+      program,
+      outputMerkleTree,
+      signer,
+      mint,
+      dest_chain_id,
+      dest_chain_mint_addr,
+      SOLANA_CHAIN_ID,
+      mint.toString(),
+    );
     // Create counter compressed account.
     // await CreateCounterCompressedAccount(
     //   rpc,

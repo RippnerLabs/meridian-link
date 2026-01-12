@@ -14,7 +14,7 @@ mod instructions;
 mod error;
 use instructions::*;
 
-declare_id!("82ZuVtSrqVWfmuxH34R9ASdwLJ6TTNxGyBeBXbeZMycP");
+declare_id!("9He8p6qdDUbHu6HLwmQhHfzA4cfrd5uc2udYGHcabbHv");
 
 #[program]
 pub mod cross_chain_token_bridge {
