@@ -22,24 +22,31 @@ import snarkjs from "snarkjs";
 import { handleSolDeposit } from "./server";
 
 // globals
-const provider = anchor.AnchorProvider.env();
-anchor.setProvider(provider);
-const program = new anchor.Program(idl as CrossChainTokenBridge, provider);
+// Parse the keypair from the environment variable (JSON array string)
 const relayerKp = anchor.web3.Keypair.fromSecretKey(
-  new Uint8Array(
-    JSON.parse(fs.readFileSync(path.join(__dirname, "../relayer.json"), "utf8"))
-  )
+  new Uint8Array(JSON.parse(process.env.SOLANA_RELAYER_KEYPAIR!))
 );
-let initialised = false;
-const rpc = createRpc(
+
+// Create connection and provider manually instead of using AnchorProvider.env()
+const connection = new anchor.web3.Connection(
+  process.env.ANCHOR_PROVIDER_URL || process.env.SOLANA_VALIDATOR_URL || "http://localhost:8899",
+  "confirmed"
+);
+const wallet = new anchor.Wallet(relayerKp);
+const provider = new anchor.AnchorProvider(connection, wallet, {
+  commitment: "confirmed",
+});
+anchor.setProvider(provider);
+
+const program = new anchor.Program(idl as CrossChainTokenBridge, provider);
+console.log("process.env.SOLANA_NETWORK", process.env.SOLANA_NETWORK);
+const rpc = process.env.SOLANA_NETWORK == "devnet" ? 
+  createRpc(process.env.SOLANA_VALIDATOR_URL)
+: createRpc(
   process.env.SOLANA_VALIDATOR_URL,
   process.env.SOLANA_COMPRESSION_API_ENDPOINT,
   process.env.SOLANA_PROVER_ENDPOINT
-);
-
-async function init() {
-  initialised = true;
-}
+)
 
 export async function solanaWithdraw(proofProc: any, depositEvent: any) {
   const stateTreeInfos = await rpc.getStateTreeInfos();
@@ -47,6 +54,7 @@ export async function solanaWithdraw(proofProc: any, depositEvent: any) {
   const defaultAddressTreeInfo = getDefaultAddressTreeInfo();
   const addressTree = defaultAddressTreeInfo.tree;
   const addressQueue = defaultAddressTreeInfo.queue;
+  console.log("solanaWithdraw - 1");
 
   // process eth addresses
   depositEvent.tokenMint = bs58.encode(
@@ -161,7 +169,7 @@ export async function solanaWithdraw(proofProc: any, depositEvent: any) {
   tx.sign(relayerKp);
 
   const sig = await rpc.sendTransaction(tx, [relayerKp]);
-  await rpc.confirmTransaction(sig, "finalized");
+  await rpc.confirmTransaction(sig, "confirmed");
 
   const withdrawalRecordAccount = await rpc.getCompressedAccount(
     bn(withdrawalAccountAddress.toBytes())

@@ -4,12 +4,11 @@ import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
-import { Menu, X, Settings, ChevronDown } from 'lucide-react'
+import { Menu, X, Settings, Wallet, Zap, Sparkles } from 'lucide-react'
 import { ThemeSelect } from '@/components/theme-select'
 import { ClusterUiSelect } from './cluster/cluster-ui'
 import { WalletButton } from '@/components/solana/solana-provider'
 import { WalletConnectionDrawer } from '@/components/bridge/wallet-connection-drawer'
-import { Wallet } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   DropdownMenu,
@@ -36,92 +35,84 @@ export function AppHeader({ links = [] }: { links: { label: string; path: string
   ]
 
   return (
-    <header className="relative z-50 w-full backdrop-blur-md bg-black/20 border-b border-white/10">
+    <header className="relative z-50 w-full border-b-4 border-border bg-background">
       <div className="mx-auto max-w-7xl px-6 py-4">
         <div className="flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-3 group">
-            <div className="relative rounded-lg">
+            <div className="relative rounded-base border-2 border-border p-1 bg-main shadow-shadow transition-all group-hover:translate-x-boxShadowX group-hover:translate-y-boxShadowY group-hover:shadow-none">
               <Image
                 src="/logo.png"
-                alt="Rippner Labs Logo"
-                width={30}
-                height={30}
-                className="transition-transform duration-200 group-hover:scale-105 rounded-lg"
+                alt="Meridian Link Logo"
+                width={32}
+                height={32}
+                className="rounded-sm"
                 priority
               />
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-600/20 rounded-full blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
             </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+            <span className="text-2xl font-heading text-foreground">
               Meridian Link
             </span>
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-1">
+          <nav className="hidden md:flex items-center gap-2">
             {navigationItems.map(({ label, path, badge }) => (
               <Link
                 key={path}
                 href={path}
                 className={cn(
-                  "relative px-4 py-2 text-sm font-medium transition-all duration-200 rounded-lg group",
+                  "relative px-4 py-2 text-sm font-base rounded-base border-2 transition-all",
                   isActive(path) 
-                    ? "text-white bg-white/10 shadow-lg" 
-                    : "text-gray-300 hover:text-white hover:bg-white/5"
+                    ? "bg-main text-main-foreground border-border shadow-shadow" 
+                    : "bg-secondary-background text-foreground border-border hover:bg-main hover:text-main-foreground hover:shadow-shadow"
                 )}
               >
-                <span className="relative z-10 flex items-center gap-2">
+                <span className="flex items-center gap-2">
                   {label}
                   {badge && (
-                    <Badge variant="secondary" className="text-xs px-1.5 py-0.5 bg-blue-500/20 text-blue-300 border-blue-400/30">
+                    <Badge className="text-[10px] px-1.5 py-0 bg-chart-1 text-white">
                       {badge}
                     </Badge>
                   )}
                 </span>
-                {isActive(path) && (
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-600/10 rounded-lg" />
-                )}
               </Link>
             ))}
           </nav>
 
           {/* Right Side Actions */}
-          <div className="hidden md:flex items-center space-x-3">
+          <div className="hidden md:flex items-center gap-3">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
-                  variant="ghost"
+                  variant="neutral"
                   size="icon"
-                  className="text-gray-300 hover:text-white hover:bg-white/10 transition-all duration-200"
                 >
                   <Settings className="h-5 w-5" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent 
                 align="end" 
-                className="w-56 bg-black/90 backdrop-blur-md border-white/10"
+                className="w-56"
               >
-                <div className="p-2">
-                  <div className="mb-2">
-                    <p className="text-sm font-medium text-white mb-2">Cluster</p>
+                <div className="p-3 space-y-4">
+                  <div>
+                    <p className="text-sm font-heading mb-2">Cluster</p>
                     <ClusterUiSelect />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-white mb-2">Theme</p>
+                    <p className="text-sm font-heading mb-2">Theme</p>
                     <ThemeSelect />
                   </div>
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>
             
-            <div className="h-6 w-px bg-white/20" />
+            <div className="h-8 w-[3px] bg-border" />
             
             <WalletConnectionDrawer>
-              <Button 
-                variant="outline" 
-                className="bg-white/5 border-white/10 text-white hover:bg-white/10 transition-colors"
-              >
-                <Wallet className="h-4 w-4 mr-2" />
+              <Button variant="default">
+                <Wallet className="h-4 w-4" />
                 Connect Wallet
               </Button>
             </WalletConnectionDrawer>
@@ -129,9 +120,9 @@ export function AppHeader({ links = [] }: { links: { label: string; path: string
 
           {/* Mobile Menu Button */}
           <Button 
-            variant="ghost" 
+            variant="neutral" 
             size="icon" 
-            className="md:hidden text-white hover:bg-white/10 transition-all duration-200" 
+            className="md:hidden" 
             onClick={() => setShowMenu(!showMenu)}
           >
             {showMenu ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -140,57 +131,52 @@ export function AppHeader({ links = [] }: { links: { label: string; path: string
 
         {/* Mobile Menu */}
         {showMenu && (
-          <div className="md:hidden mt-6 pb-6 border-t border-white/10">
-            <nav className="flex flex-col space-y-2 pt-6">
+          <div className="md:hidden mt-6 pb-6 border-t-4 border-border">
+            <nav className="flex flex-col gap-2 pt-6">
               {navigationItems.map(({ label, path, badge }) => (
                 <Link
                   key={path}
                   href={path}
                   className={cn(
-                    "flex items-center justify-between px-4 py-3 text-sm font-medium transition-all duration-200 rounded-lg",
+                    "flex items-center justify-between px-4 py-3 text-sm font-base rounded-base border-2 transition-all",
                     isActive(path) 
-                      ? "text-white bg-white/10" 
-                      : "text-gray-300 hover:text-white hover:bg-white/5"
+                      ? "bg-main text-main-foreground border-border shadow-shadow" 
+                      : "bg-secondary-background text-foreground border-border hover:bg-main hover:text-main-foreground"
                   )}
                   onClick={() => setShowMenu(false)}
                 >
                   <span>{label}</span>
                   {badge && (
-                    <Badge variant="secondary" className="text-xs px-1.5 py-0.5 bg-blue-500/20 text-blue-300 border-blue-400/30">
+                    <Badge className="text-[10px] px-1.5 py-0 bg-chart-1 text-white">
                       {badge}
                     </Badge>
                   )}
                 </Link>
               ))}
               
-              <div className="pt-6 space-y-4 border-t border-white/10 mt-6">
+              <div className="pt-6 space-y-4 border-t-4 border-border mt-6">
                 <WalletConnectionDrawer>
                   <Button 
-                    variant="outline" 
-                    className="w-full bg-white/5 border-white/10 text-white hover:bg-white/10 transition-colors"
+                    variant="default"
+                    className="w-full"
                   >
-                    <Wallet className="h-4 w-4 mr-2" />
+                    <Wallet className="h-4 w-4" />
                     Connect Wallet
                   </Button>
                 </WalletConnectionDrawer>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-white">Settings</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-gray-300 hover:text-white hover:bg-white/10"
-                  >
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div className="space-y-3 pl-4">
-                  <div>
-                    <p className="text-xs font-medium text-gray-400 mb-2">Cluster</p>
-                    <ClusterUiSelect />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-gray-400 mb-2">Theme</p>
-                    <ThemeSelect />
+                <div className="space-y-4 mt-4">
+                  <div className="rounded-base border-2 border-border bg-secondary-background p-4">
+                    <p className="text-sm font-heading mb-3">Settings</p>
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-xs text-foreground/70 mb-2">Cluster</p>
+                        <ClusterUiSelect />
+                      </div>
+                      <div>
+                        <p className="text-xs text-foreground/70 mb-2">Theme</p>
+                        <ThemeSelect />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -96,11 +96,17 @@ export interface SolanaDepositParams {
 async function createSolDeposit(
   solDepositParams: SolanaDepositParams,
 ) {
-  const rpc = createRpc(
-    process.env.SOLANA_VALIDATOR_URL,
-    process.env.SOLANA_COMPRESSION_API_ENDPOINT,
-    process.env.SOLANA_PROVER_ENDPOINT,
+  const rpc = process.env.NEXT_PUBLIC_SOL_NETWORK == "devnet"
+  ?
+    createRpc(
+      process.env.NEXT_PUBLIC_SOLANA_VALIDATOR_URL
+    )
+  : createRpc(
+    process.env.NEXT_PUBLIC_SOLANA_VALIDATOR_URL,
+    process.env.NEXT_SOLANA_COMPRESSION_API_ENDPOINT,
+    process.env.NEXT_SOLANA_PROVER_ENDPOINT,
   );
+
   const stateTreeInfos = await rpc.getStateTreeInfos();
   const outputMerkleTree = stateTreeInfos[0].tree;
   const defaultAddressTreeInfo = getDefaultAddressTreeInfo();
@@ -113,16 +119,20 @@ async function createSolDeposit(
     throw new Error("Solana wallet not connected");
   }
 
+  console.log("providedConnection", providedConnection);
   const connection =
     providedConnection ??
     new Connection(
-      process.env.NEXT_PUBLIC_SOLANA_RPC_ENDPOINT || "http://127.0.0.1:8899",
+      process.env.NEXT_PUBLIC_SOLANA_VALIDATOR_URL || "",
       "confirmed",
     );
+
+  console.log("connection", connection);
 
   const provider =
     providedProvider ?? new anchor.AnchorProvider(connection, wallet as any, { commitment: "confirmed" });
 
+  console.log("provider", provider);
   const program = getProgram(provider);
 
   const bridgeStateAddr = PublicKey.findProgramAddressSync([

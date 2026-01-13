@@ -1,0 +1,9 @@
+{
+  "verifierSmartContractAddress": "0xf82e2e297611f680e930572250bdf3919f4c3ff7",
+  "bridgeSmartContractAddress": "0xf5832952bba9da556758db624fbc139c828d791f",
+  "tokenSmartContractAddress": "0xf91577ae75b339eb709a333ee40a9c9109ef013e",
+  "secondWalletAddress": "",
+  "deployer": "0xc16C24A02fA15C6bD898Aa38AbD8082F5D1dB4F2",
+  "network": "sepolia",
+  "chainId": 11155111
+}

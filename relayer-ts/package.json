@@ -12,7 +12,7 @@
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",
     "@jayanth-kumar-morem/indexed-merkle-tree": "^1.1.2",
-    "@jayanth-kumar-morem/snarkjs-to-solana": "file:/Users/jayanthkumar/Downloads/work/snarkjs-to-solana/dist",
+    "@jayanth-kumar-morem/snarkjs-to-solana": "^1.1.0",
     "@lightprotocol/stateless.js": "0.21.0",
     "@metaplex-foundation/mpl-token-metadata": "^3.4.0",
     "@metaplex-foundation/umi": "^1.2.0",

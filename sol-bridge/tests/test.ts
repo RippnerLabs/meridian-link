@@ -22,7 +22,7 @@ import bs58 from "bs58";
 const path = require("path");
 require("dotenv").config();
 
-const anchorWalletPath = path.join(__dirname, "../../keys/signer.json");
+const anchorWalletPath = path.join(__dirname, "../../keys/solana-admin.json");
 process.env.ANCHOR_WALLET = anchorWalletPath;
 
 const withdrawalNullifier = [11,3,119,82,135,205,250,45,160,213,133,169,79,212,130,204,137,128,91,19,82,142,63,56,50,224,60,189,43,8,50,4];
@@ -135,7 +135,7 @@ describe("test-anchor", () => {
       dest_chain_addr,
     );
 
-    const withdrawKp = anchor.web3.Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(path.join(__dirname, "../../keys/signer.json"), "utf8"))));
+    const withdrawKp = anchor.web3.Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(path.join(__dirname, "../../keys/solana-admin.json"), "utf8"))));
     const withdrawalRecordSeed = deriveAddressSeed(
       [
         new TextEncoder().encode("withdrawal"),
@@ -304,7 +304,7 @@ async function depositToTokenVault(
 
     tx.recentBlockhash = (await rpc.getRecentBlockhash()).blockhash;
     const sig = await rpc.sendTransaction(tx, [signer]);
-    await rpc.confirmTransaction(sig, "finalized");
+    await rpc.confirmTransaction(sig, "confirmed");
     console.log("depositToTokenVault sig:", sig);
   }
 }
@@ -378,7 +378,7 @@ async function CreateDepositRecordCompressedAccount(
     tx.sign(signer);
 
     const sig = await rpc.sendTransaction(tx, [signer]);
-    await rpc.confirmTransaction(sig, "finalized");
+    await rpc.confirmTransaction(sig, "confirmed");
     console.log("created deposit record", sig);
 
     await sleep(4000);
@@ -458,10 +458,10 @@ async function CreateWithdrawalRecordCompressedAccount(
     withdrawalProofTx.sign(signer);
 
     const sig1 = await rpc.sendTransaction(withdrawalProofTx, [signer]);
-    await rpc.confirmTransaction(sig1, "finalized");
+    await rpc.confirmTransaction(sig1, "confirmed");
     console.log("created withdrawal proof", sig1);
 
-    const withdrawKp = anchor.web3.Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(path.join(__dirname, "../../keys/signer.json"), "utf8"))));
+    const withdrawKp = anchor.web3.Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(path.join(__dirname, "../../keys/solana-admin.json"), "utf8"))));
 
     // get the balance of mint tokens for withdrawKp
     const withdrawKpAta = await getOrCreateAssociatedTokenAccount(
@@ -533,7 +533,7 @@ async function CreateWithdrawalRecordCompressedAccount(
     tx.sign(signer);
 
     const sig = await rpc.sendTransaction(tx, [signer]);
-    await rpc.confirmTransaction(sig, "finalized");
+    await rpc.confirmTransaction(sig, "confirmed");
     console.log("created withdraw record", sig);
 
     await sleep(4000);

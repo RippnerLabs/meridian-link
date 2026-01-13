@@ -84,6 +84,7 @@ export function useBridgeDataAccess() {
     if (!isConnected || !address) {
       toast.error('Please connect your Ethereum wallet');
       return null;
+
     }
     if (!contractAddresses.tokenSmartContractAddress) {
       toast.error('Token address is not configured');

@@ -1,73 +1,208 @@
 import hre from "hardhat";
-import { parseEther } from "viem";
+import { parseEther, createWalletClient, createPublicClient, http, formatEther, encodeDeployData } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { sepolia, hardhat } from "viem/chains";
 import path from "path";
 import * as fs from "fs";
 
 const configDir = path.join(__dirname, "../../config")
 
-export async function deploy() {
-  const [deployer] = await hre.viem.getWalletClients();
-  const publicClient = await hre.viem.getPublicClient();
+// Get the appropriate chain config based on network
+function getChainConfig() {
+  const networkName = hre.network.name;
+  if (networkName === "sepolia") {
+    return { chain: sepolia, transport: http(process.env.SEPOLIA_URL) };
+  }
+  return { chain: hardhat, transport: http("http://127.0.0.1:8545") };
+}
 
-  console.log("deployer", deployer.account.address);
-  console.log(
-    "publicClient",
-    await publicClient.getBalance({ address: deployer.account.address })
-  );
+export async function deploy() {
+  const networkName = hre.network.name;
+  const isRemoteNetwork = networkName === "sepolia";
+  
+  let deployer: any;
+  let publicClient: any;
+  let deployerAddress: `0x${string}`;
+
+  if (isRemoteNetwork) {
+    // For remote networks (Sepolia), create a local account to sign transactions
+    const privateKey = process.env.ETH_BRIDGE_DEPLOYER_PRIVKEY as `0x${string}`;
+    if (!privateKey) {
+      throw new Error("ETH_BRIDGE_DEPLOYER_PRIVKEY not set in environment");
+    }
+    
+    const account = privateKeyToAccount(privateKey);
+    const { chain, transport } = getChainConfig();
+    
+    deployer = createWalletClient({
+      account,
+      chain,
+      transport,
+    });
+    
+    publicClient = createPublicClient({
+      chain,
+      transport,
+    });
+    
+    deployerAddress = account.address;
+  } else {
+    // For local networks, use hardhat's built-in wallet clients
+    [deployer] = await hre.viem.getWalletClients();
+    publicClient = await hre.viem.getPublicClient();
+    deployerAddress = deployer.account.address;
+  }
+
+  console.log("Network:", networkName);
+  console.log("Deployer:", deployerAddress);
+  
+  const balance = await publicClient.getBalance({ address: deployerAddress });
+  console.log("Balance:", formatEther(balance), "ETH");
+
+  if (balance === 0n) {
+    throw new Error("Deployer account has no ETH. Please fund the account first.");
+  }
+
+  // Deploy using the appropriate method
+  async function deployContractWithSigner(contractName: string, args: any[] = []) {
+    if (isRemoteNetwork) {
+      // For remote networks, compile and deploy manually
+      const artifact = await hre.artifacts.readArtifact(contractName);
+      
+      // Encode constructor arguments
+      const deployData = encodeDeployData({
+        abi: artifact.abi,
+        bytecode: artifact.bytecode as `0x${string}`,
+        args,
+      });
+
+      // Estimate gas for deployment
+      const gasEstimate = await publicClient.estimateGas({
+        account: deployerAddress,
+        data: deployData,
+      });
+
+      // Add 20% buffer to gas estimate
+      const gasLimit = (gasEstimate * 120n) / 100n;
+
+      // Send deployment transaction
+      const hash = await deployer.sendTransaction({
+        data: deployData,
+        gas: gasLimit,
+      });
+
+      console.log(`Deploying ${contractName}... tx: ${hash}`);
+
+      // Wait for transaction receipt
+      const receipt = await publicClient.waitForTransactionReceipt({ 
+        hash,
+        confirmations: 2, // Wait for 2 confirmations on testnet
+      });
+      
+      if (!receipt.contractAddress) {
+        throw new Error(`Failed to deploy ${contractName}`);
+      }
+
+      console.log(`${contractName} deployed at: ${receipt.contractAddress}`);
+
+      // Return a contract instance
+      return await hre.viem.getContractAt(contractName, receipt.contractAddress);
+    } else {
+      // For local networks, use hardhat-viem
+      return await hre.viem.deployContract(contractName, args);
+    }
+  }
 
   // deploy sol deposit verifier contract
-  const verifier = await hre.viem.deployContract("SolDepositVerifier");
-  console.log("verifier", verifier.address);
+  console.log("\nDeploying SolDepositVerifier...");
+  const verifier = await deployContractWithSigner("SolDepositVerifier");
+  console.log("Verifier:", verifier.address);
 
   // deploy solana evm bridge
-  const bridge = await hre.viem.deployContract("SolanaEVMBridge", [
-    verifier.address,
-  ]);
-  console.log("bridge", bridge.address);
+  console.log("\nDeploying SolanaEVMBridge...");
+  const bridge = await deployContractWithSigner("SolanaEVMBridge", [verifier.address]);
+  console.log("Bridge:", bridge.address);
 
   // deploy test token
+  console.log("\nDeploying BridgeToken...");
   const totalSupply = 1000000n;
-  const token = await hre.viem.deployContract("BridgeToken", [
+  const token = await deployContractWithSigner("BridgeToken", [
     "BridgeToken",
     "BrTN",
     totalSupply,
   ]);
-  console.log("token", token.address);
+  console.log("Token:", token.address);
 
   // mint tokens to bridge contract
-  const mintAmount = parseEther(`${totalSupply/2n}`); //1M
-  await token.write.mint([bridge.address, mintAmount]);
-  await token.write.mint([bridge.address, parseEther(`${totalSupply/4n}`)]);
+  console.log("\nMinting tokens to bridge...");
+  const mintAmount = parseEther(`${totalSupply/2n}`);
+  
+  if (isRemoteNetwork) {
+    // For remote networks, mint using the wallet client
+    const hash1 = await deployer.writeContract({
+      address: token.address,
+      abi: token.abi,
+      functionName: "mint",
+      args: [bridge.address, mintAmount],
+    });
+    console.log("Minting 500k tokens... tx:", hash1);
+    await publicClient.waitForTransactionReceipt({ hash: hash1, confirmations: 2 });
+    
+    const hash2 = await deployer.writeContract({
+      address: token.address,
+      abi: token.abi,
+      functionName: "mint",
+      args: [bridge.address, parseEther(`${totalSupply/4n}`)],
+    });
+    console.log("Minting 250k tokens... tx:", hash2);
+    await publicClient.waitForTransactionReceipt({ hash: hash2, confirmations: 2 });
+  } else {
+    await token.write.mint([bridge.address, mintAmount]);
+    await token.write.mint([bridge.address, parseEther(`${totalSupply/4n}`)]);
+  }
 
   // Get token balances
-  const userBalance = await token.read.balanceOf([deployer.account.address]);
-  const bridgeBalance = await token.read.balanceOf([bridge.address]);
+  const userBalance = await token.read.balanceOf([deployerAddress]) as bigint;
+  const bridgeBalance = await token.read.balanceOf([bridge.address]) as bigint;
 
-  console.log(`User token balance: ${userBalance}`);
-  console.log(`Bridge token balance: ${bridgeBalance}`);
+  console.log(`\nToken Balances:`);
+  console.log(`User token balance: ${formatEther(userBalance)} BrTN`);
+  console.log(`Bridge token balance: ${formatEther(bridgeBalance)} BrTN`);
 
   // get second wallet address (only available on local networks)
   let secondWalletAddress = "";
-  try {
-    const [, secondWallet] = await hre.viem.getWalletClients();
-    secondWalletAddress = secondWallet.account.address;
-    console.log("secondWallet", secondWalletAddress);
-  } catch (error) {
-    console.log("Second wallet not available (likely on testnet/mainnet)");
+  if (!isRemoteNetwork) {
+    try {
+      const [, secondWallet] = await hre.viem.getWalletClients();
+      secondWalletAddress = secondWallet.account.address;
+      console.log("secondWallet", secondWalletAddress);
+    } catch (error) {
+      console.log("Second wallet not available");
+    }
   }
 
-  const addressBook =  {
+  const addressBook = {
     verifierSmartContractAddress: verifier.address.toString(),
     bridgeSmartContractAddress: bridge.address.toString(),
     tokenSmartContractAddress: token.address.toString(),
     secondWalletAddress: secondWalletAddress,
-    deployer: deployer.account.address
+    deployer: deployerAddress,
+    network: networkName,
+    chainId: isRemoteNetwork ? 11155111 : 31337,
+  }
+  
+  // Ensure config directory exists
+  if (!fs.existsSync(configDir)) {
+    fs.mkdirSync(configDir, { recursive: true });
   }
   
   fs.writeFileSync(path.join(configDir, `${hre.network.name}_address_book.json`), JSON.stringify(addressBook, null, 2))
+  console.log(`\nAddress book saved to: ${path.join(configDir, `${hre.network.name}_address_book.json`)}`);
 
   //  update web/.env.local with public NEXT_PUBLIC_* keys for the frontend
-  const envPath = path.join(__dirname, "../../web/.env.local");
+  const envPath = isRemoteNetwork 
+    ? path.join(__dirname, "../../web/.env.test")
+    : path.join(__dirname, "../../web/.env.local");
 
   const envUpdates: Record<string, string> = {
     NEXT_PUBLIC_ETH_VERIFIER_SMART_CONTRACT_ADDRESS: verifier.address.toString(),
@@ -133,6 +268,16 @@ export async function deploy() {
   }
 
   updateEnvFile(envPath, envUpdates);
+
+  console.log("\nDeployment complete!");
+  console.log("\nSummary:");
+  console.log(`   Network: ${networkName}`);
+  console.log(`   Verifier: ${verifier.address}`);
+  console.log(`   Bridge: ${bridge.address}`);
+  console.log(`   Token: ${token.address}`);
 }
 
-deploy()
+deploy().catch((error) => {
+  console.error("Deployment failed:", error);
+  process.exit(1);
+});

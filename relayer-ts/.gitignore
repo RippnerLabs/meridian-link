@@ -1,1 +1,6 @@
 node_modules/
+relayer.json
+.env.local
+.env.test
+bun.lock
+yarn.lock

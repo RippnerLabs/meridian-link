@@ -3,7 +3,15 @@ node_modules
 
 # Hardhat files
 /cache
-/artifacts
+/artifacts/*
+!/artifacts/contracts/
+/artifacts/contracts/*
+!/artifacts/contracts/BridgeToken.sol/
+!/artifacts/contracts/evm-bridge.sol/
+/artifacts/contracts/BridgeToken.sol/*
+/artifacts/contracts/evm-bridge.sol/*
+!/artifacts/contracts/BridgeToken.sol/BridgeToken.json
+!/artifacts/contracts/evm-bridge.sol/SolanaEVMBridge.json
 
 # TypeChain files
 /typechain

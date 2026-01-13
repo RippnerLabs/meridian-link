@@ -33,21 +33,19 @@ const {
 // ABIs
 import BridgeToken from "../../evm-bridge/artifacts/contracts/BridgeToken.sol/BridgeToken.json";
 import SolanaEVMBridge from "../../evm-bridge/artifacts/contracts/evm-bridge.sol/SolanaEVMBridge.json";
-import addressBook from "../../config/localhost_address_book.json";
-dotenv.config({ path: ".env.local" });
+dotenv.config({ path: ".env.test" });
 // @ts-ignore
 import snarkjs from "snarkjs";
 import { solanaWithdraw } from "./sol-bridge";
 
 const app = express();
 const PORT = process.env.PORT || 3006;
-// const web3 = new Web3(process.env.ETHEREUM_NODE_URL);
 const provider = new ethers.JsonRpcProvider(process.env.ETHEREUM_NODE_URL);
 const wallet = new ethers.Wallet(process.env.RELAYER_PRIVKEY, provider);
 
 // contracts
 const evmBridgeContract = new ethers.Contract(
-  addressBook.bridgeSmartContractAddress,
+  process.env.ETHEREUM_BRIDGE_SMART_CONTRACT_ADDRESS,
   SolanaEVMBridge.abi,
   provider
 );
@@ -199,7 +197,7 @@ async function getTokenBalance(rawDepositRecord: any) {
     "0x" +
     Buffer.from(bs58.decode(rawDepositRecord.dest_chain_addr)).toString("hex");
   // Use the actual deployed token contract address from address book
-  const tokenContractAddr = addressBook.tokenSmartContractAddress;
+  const tokenContractAddr = process.env.ETH_TOKEN_SMART_CONTRACT_ADDRESS;
   const bridgeTokenContract = new ethers.Contract(
     tokenContractAddr,
     BridgeToken.abi,
@@ -221,7 +219,7 @@ async function withdrawFromEthChain(rawDepositRecord: any, proof: any) {
       Buffer.from(bs58.decode(rawDepositRecord.dest_chain_addr)).toString(
         "hex"
       );
-    const destChainMintAddr = addressBook.tokenSmartContractAddress;
+    const destChainMintAddr = process.env.ETH_TOKEN_SMART_CONTRACT_ADDRESS;
     const depositRecord = {
       owner: rawDepositRecord.owner.toString(),
       sourceChainId: rawDepositRecord.source_chain_id,
@@ -371,7 +369,7 @@ export async function handleSolDeposit(address) {
 
     console.log("Processing address:", address);
 
-    const rpc: Rpc = createRpc();
+    const rpc: Rpc = process.env.SOLANA_NETWORK == "devnet" ? createRpc(process.env.SOLANA_VALIDATOR_URL) : createRpc();
 
     const addressBytes = new PublicKey(address).toBytes();
 

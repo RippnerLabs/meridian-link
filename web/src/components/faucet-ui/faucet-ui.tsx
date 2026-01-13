@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui/card";
 import { Button } from "../ui/button";
 import { SearchableSelect, SearchableItem } from "../ui/select-menu";
 import { WalletButton as SolWalletButton } from "../solana/solana-provider";
@@ -16,6 +16,9 @@ import { parseUnits } from "viem";
 import { Connection, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID, createAssociatedTokenAccountInstruction, getAccount, getMint, createMintToInstruction } from "@solana/spl-token";
 import { NetworkEthereum, NetworkSolana, TokenUSDC } from "@web3icons/react";
+import { Badge } from "../ui/badge";
+import { Label } from "../ui/label";
+import { Droplet, Coins, Sparkles, RefreshCw } from "lucide-react";
 
 type ChainValue = "ethereum" | "solana";
 
@@ -37,6 +40,7 @@ const TOKENS_BY_CHAIN: Record<ChainValue, SearchableItem[]> = {
 export default function FaucetUI() {
   const [chain, setChain] = useState<ChainValue>("ethereum");
   const [token, setToken] = useState<string>(TOKENS_BY_CHAIN["ethereum"].find(t => !!t.value)?.value || "");
+  const [isRequesting, setIsRequesting] = useState(false);
 
   // Wallets
   const { address: ethAddress, isConnected: isEthConnected } = useAccount();
@@ -63,6 +67,7 @@ export default function FaucetUI() {
         toast.error("Invalid token address");
         return;
       }
+      setIsRequesting(true);
       const res = await fetch('/api/faucet/ethereum', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -75,6 +80,8 @@ export default function FaucetUI() {
     } catch (err: any) {
       console.error(err);
       toast.error("Ethereum airdrop failed");
+    } finally {
+      setIsRequesting(false);
     }
   };
 
@@ -90,6 +97,7 @@ export default function FaucetUI() {
         toast.error("Invalid mint address");
         return;
       }
+      setIsRequesting(true);
       const res = await fetch('/api/faucet/solana', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -102,6 +110,8 @@ export default function FaucetUI() {
     } catch (err: any) {
       console.error(err);
       toast.error("Solana airdrop failed");
+    } finally {
+      setIsRequesting(false);
     }
   };
 
@@ -113,16 +123,30 @@ export default function FaucetUI() {
   const walletConnected = chain === "ethereum" ? isEthConnected : isSolConnected;
 
   return (
-    <div className="min-h-[80vh] text-white flex items-center justify-center p-4">
+    <div className="min-h-[80vh] bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-xl space-y-6">
-        <Card className="bg-gray-900/80 backdrop-blur border-gray-800 text-white">
+        {/* Header */}
+        <div className="text-center space-y-2">
+          <Badge className="bg-chart-1 text-white">
+            <Droplet className="w-3 h-3 mr-1" />
+            Testnet Faucet
+          </Badge>
+          <h1 className="text-4xl font-heading text-foreground">Get Test Tokens</h1>
+          <p className="text-foreground/60">Request tokens to test the bridge on testnet</p>
+        </div>
+
+        <Card>
           <CardHeader>
-            <CardTitle>Faucet</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Coins className="w-5 h-5 text-main" />
+              Request Tokens
+            </CardTitle>
+            <CardDescription>Select your chain and token to receive an airdrop</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* 1/ Chain selector */}
+            {/* Chain selector */}
             <div className="space-y-2">
-              <label className="text-sm text-gray-400">Chain</label>
+              <Label>Chain</Label>
               <SearchableSelect
                 items={CHAINS}
                 value={chain}
@@ -131,9 +155,9 @@ export default function FaucetUI() {
               />
             </div>
 
-            {/* 2/ Token selector per chain */}
+            {/* Token selector per chain */}
             <div className="space-y-2">
-              <label className="text-sm text-gray-400">Token</label>
+              <Label>Token</Label>
               <SearchableSelect
                 items={TOKENS_BY_CHAIN[chain].filter(t => !!t.value)}
                 value={token}
@@ -142,21 +166,73 @@ export default function FaucetUI() {
               />
             </div>
 
-            {/* 3/ Balance and Airdrop */}
-            <div className="space-y-2">
+            {/* Balance Display */}
+            <div className="rounded-base border-2 border-border bg-secondary-background p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-400">Balance</span>
-                <span className="text-sm font-medium text-white">{isLoading ? "Loading…" : balance}</span>
+                <span className="text-sm text-foreground/60">Current Balance</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-heading">
+                    {isLoading ? "Loading…" : `${parseFloat(balance.toString()).toFixed(4)}`}
+                  </span>
+                  <Button 
+                    variant="neutral" 
+                    size="icon" 
+                    className="h-7 w-7"
+                    onClick={() => refetch()}
+                    disabled={isLoading}
+                  >
+                    <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center justify-between">
+              <div className="text-xs text-foreground/50">
+                You will receive 100 tokens per request
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between rounded-base border-2 border-border bg-secondary-background p-3">
+                <span className="text-sm text-foreground/70">Connect Wallet</span>
                 {chain === "ethereum" ? <EthereumWalletButton /> : <SolWalletButton />}
-                <Button
-                  className="bg-blue-600 hover:bg-blue-700"
-                  onClick={requestAirdrop}
-                  disabled={!walletConnected}
-                >
-                  {walletConnected ? "Request Airdrop" : "Connect Wallet"}
-                </Button>
+              </div>
+              
+              <Button
+                className="w-full h-12 text-lg"
+                onClick={requestAirdrop}
+                disabled={!walletConnected || isRequesting}
+              >
+                {isRequesting ? (
+                  <>
+                    <RefreshCw className="w-5 h-5 animate-spin" />
+                    Requesting...
+                  </>
+                ) : walletConnected ? (
+                  <>
+                    <Sparkles className="w-5 h-5" />
+                    Request Airdrop
+                  </>
+                ) : (
+                  "Connect Wallet First"
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Info Card */}
+        <Card className="bg-secondary-background">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-base border-2 border-border bg-main">
+                <Droplet className="w-4 h-4 text-main-foreground" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-heading">How it works</p>
+                <p className="text-xs text-foreground/60">
+                  This faucet provides test tokens for experimenting with the bridge. 
+                  Tokens have no real value and are only for testing purposes.
+                </p>
               </div>
             </div>
           </CardContent>

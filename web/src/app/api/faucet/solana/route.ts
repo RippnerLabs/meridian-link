@@ -12,7 +12,7 @@ type FaucetRequest = {
 
 function readSignerFromKeys(): Keypair {
   const projectRoot = process.cwd(); // points to web/
-  const signerPath = path.resolve(projectRoot,  '..', 'keys', 'signer.json');
+  const signerPath = path.resolve(projectRoot,  '..', 'keys', 'solana-admin.json');
   const secret = JSON.parse(fs.readFileSync(signerPath, 'utf8')) as number[];
   return Keypair.fromSecretKey(new Uint8Array(secret));
 }
